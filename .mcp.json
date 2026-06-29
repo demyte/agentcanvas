@@ -1,3 +1,10 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "canvas": {
+      "command": "python",
+      "args": [
+        "D:\\Projects\\canvas\\src\\canvas_mcp_server.py"
+      ]
+    }
+  }
 }
