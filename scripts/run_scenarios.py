@@ -8,6 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from smoke_mcp import McpClient, SmokeFailure, latest_installed_plugin, server_config, tool_payload
 
@@ -341,13 +342,17 @@ def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> t
 
 
 def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any]], resource_counts: dict[str, int]) -> Path:
+    def report_link(path: str) -> str:
+        relative = Path(path).resolve().relative_to(output.resolve()).as_posix()
+        return quote(relative, safe="/")
+
     rows = "\n".join(
         "<tr>"
         f"<td>{html.escape(item['name'])}</td>"
         f"<td><code>{html.escape(item['id'])}</code></td>"
         f"<td>{'pass' if item['passed'] else 'fail'}</td>"
         f"<td>{html.escape(', '.join(item['checks']))}</td>"
-        f"<td><a href=\"{Path(item['html_path']).as_uri()}\">canvas.html</a></td>"
+        f"<td><a href=\"{report_link(item['html_path'])}\">canvas.html</a></td>"
         "</tr>"
         for item in scenarios
     )
