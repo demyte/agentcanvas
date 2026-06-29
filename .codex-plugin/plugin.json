@@ -23,5 +23,14 @@
       "Validate this canvas."
     ]
   },
-  "mcpServers": "./.mcp.json"
+  "mcpServers": {
+    "canvas": {
+      "command": "python",
+      "args": [
+        "./src/canvas_mcp_server.py"
+      ],
+      "cwd": ".",
+      "tool_timeout_sec": 60
+    }
+  }
 }
