@@ -9,6 +9,8 @@ Use this skill to create and maintain semi-persistent Codex work surfaces.
 
 A canvas is a working artifact for an active investigation, plan, review, dashboard, or decision workflow. It is not scratch, and it is not durable project truth until explicitly promoted.
 
+Assume the Canvas MCP tools are available. Defer canvas creation, reads, updates, validation, archival, promotion records, and HTML export to those tools. Use direct filesystem reads or edits only to inspect returned files, preserve user edits, or recover when the MCP tool call is unavailable or fails.
+
 ## Model
 
 ```text
@@ -36,18 +38,16 @@ Default storage:
 
 ```text
 C:\Users\james\.agents\canvas\
-  active\<canvas-id>\
-  archived\<canvas-id>\
 ```
 
-Use another root only when the user or workspace instructions explicitly configure one.
+Use another root only when the user or workspace instructions explicitly configure one. Let the MCP decide the exact on-disk layout and use the returned `storage_path` as the canvas location.
 
 Keep the logical anchor separate from storage:
 
 ```text
 scope: repo
 anchor: D:\xpna\main
-storage: C:\Users\james\.agents\canvas\active\xpna-review
+storage: returned by canvas_init or canvas_get
 ```
 
 Repo/project folders are usually anchors, not storage targets. Do not create committable repo-local canvas files unless the user asks or the repo has a clearly ignored local-agent convention.
@@ -65,7 +65,7 @@ Prefer `repo` or `project` when a real anchor exists. Use `thread` only when no 
 
 ## Metadata
 
-Every canvas should include:
+The MCP maintains the core files:
 
 - `canvas.json`: id, lifecycle, authority, scope, anchor, timestamps, state files, capabilities, promotion targets.
 - `state.json`: structured shared state.
@@ -85,7 +85,7 @@ Define concrete:
 - `shared_state`: files both human and agent can inspect/update.
 - `promotion_targets`: allowed durable destinations.
 
-When `canvas_init` is available, pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` for shaped workflows. Use defaults only for generic canvases.
+Pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` to `canvas_init` for shaped workflows. Use defaults only for generic canvases.
 
 ## Creation Triage
 
@@ -99,6 +99,8 @@ Before creating a canvas, determine:
 6. Promotion path: where results may go if explicitly promoted.
 
 If intent is clear, proceed without asking. Ask only when the wrong anchor or storage choice would create meaningful cleanup or confusion.
+
+Create the canvas with `canvas_init`. Do not hand-create the folder or `canvas.json`.
 
 ## Surfaces
 
@@ -130,7 +132,7 @@ Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Ma
 
 Static HTML surfaces must be real HTML pages on disk. Prefer copying or editing a checked-in template and placing local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
 
-When the Canvas MCP tools are available, use `canvas_export_html` to create or refresh the `canvas.html` review surface. The export is a view of working state, not a durable promotion.
+Use `canvas_export_html` to create or refresh the `canvas.html` review surface. The export is a view of working state, not a durable promotion.
 
 ## Promotion
 
@@ -159,19 +161,19 @@ In non-git workspaces, verify with direct reads, hashes, or page checks instead 
 
 When updating an existing canvas:
 
-1. Read `canvas.json`, `state.json`, and `notes.md` first if present.
+1. Use `canvas_get` to read the canvas metadata.
 2. Preserve user edits.
-3. Apply the smallest useful update.
-4. Update timestamps/thread fields when available.
-5. Run `canvas_validate` when available.
-6. Refresh `canvas_export_html` when browser inspection helps.
+3. Use `canvas_update_state` for structured state changes.
+4. Inspect or edit returned local files only when notes, README, or custom surfaces need direct file work.
+5. Use `canvas_validate` after material changes.
+6. Refresh with `canvas_export_html` when browser inspection helps.
 7. Report changed files, storage path, promotion status, and how to continue.
 
 Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.
 
 ## Archival
 
-When finished, move the canvas from `active\<canvas-id>` to `archived\<canvas-id>`, update `canvas.json.lifecycle` to `archived`, and record any promoted final artifact in `notes.md`.
+When finished, call `canvas_archive`. Do not move folders or edit lifecycle fields manually unless recovering from an MCP failure.
 
 ## Response
 
