@@ -15,7 +15,7 @@ def print_json(data: Any) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="canvas", description="Manage local Codex canvases.")
-    parser.add_argument("--root", type=Path, help="Canvas root. Defaults to CANVAS_ROOT or Documents/Codex/canvases.")
+    parser.add_argument("--root", type=Path, help="Canvas root. Defaults to CANVAS_ROOT or ~/.agents/canvas.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="Create a canvas.")

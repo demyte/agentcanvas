@@ -35,7 +35,7 @@ Documents\Codex\YYYY-MM-DD\<session-slug>\work
 Default storage:
 
 ```text
-C:\Users\james\Documents\Codex\canvases\
+C:\Users\james\.agents\canvas\
   active\<canvas-id>\
   archived\<canvas-id>\
 ```
@@ -47,7 +47,7 @@ Keep the logical anchor separate from storage:
 ```text
 scope: repo
 anchor: D:\xpna\main
-storage: C:\Users\james\Documents\Codex\canvases\active\xpna-review
+storage: C:\Users\james\.agents\canvas\active\xpna-review
 ```
 
 Repo/project folders are usually anchors, not storage targets. Do not create committable repo-local canvas files unless the user asks or the repo has a clearly ignored local-agent convention.

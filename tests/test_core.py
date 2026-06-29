@@ -4,15 +4,35 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from canvas_core import CanvasRegistry, CanvasValidationError, normalize_canvas_id
+from canvas_core import CanvasRegistry, CanvasValidationError, default_canvas_root, normalize_canvas_id
 
 TEMPLATE = ROOT / "templates" / "canvas-viewer.html"
 
 
 class CanvasCoreTests(unittest.TestCase):
+    def test_default_canvas_root_uses_agents_canvas(self) -> None:
+        original = os.environ.pop("CANVAS_ROOT", None)
+        try:
+            self.assertEqual(default_canvas_root(), Path.home() / ".agents" / "canvas")
+        finally:
+            if original is not None:
+                os.environ["CANVAS_ROOT"] = original
+
+    def test_default_canvas_root_respects_env_override(self) -> None:
+        original = os.environ.get("CANVAS_ROOT")
+        try:
+            os.environ["CANVAS_ROOT"] = "~/custom-canvas-root"
+            self.assertEqual(default_canvas_root(), Path("~/custom-canvas-root").expanduser())
+        finally:
+            if original is None:
+                os.environ.pop("CANVAS_ROOT", None)
+            else:
+                os.environ["CANVAS_ROOT"] = original
+
     def test_normalize_canvas_id(self) -> None:
         self.assertEqual(normalize_canvas_id("PR 2713 Review Board"), "pr-2713-review-board")
         with self.assertRaises(CanvasValidationError):

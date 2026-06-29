@@ -59,7 +59,7 @@ def default_canvas_root() -> Path:
     configured = os.environ.get("CANVAS_ROOT")
     if configured:
         return Path(configured).expanduser()
-    return Path.home() / "Documents" / "Codex" / "canvases"
+    return Path.home() / ".agents" / "canvas"
 
 
 def normalize_canvas_id(value: str) -> str:

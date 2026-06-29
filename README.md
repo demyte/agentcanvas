@@ -68,6 +68,18 @@ Run CLI locally:
 python scripts\canvas.py --help
 ```
 
+## Storage
+
+By default, Canvas stores user-level canvases under:
+
+```text
+C:\Users\james\.agents\canvas\
+  active\<canvas-id>\
+  archived\<canvas-id>\
+```
+
+Override this with `CANVAS_ROOT` or the CLI/MCP `root` argument when a test or workspace needs a different root.
+
 ## Codex Connection
 
 The plugin manifest is at:
