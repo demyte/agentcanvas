@@ -24,6 +24,9 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--anchor", default="")
     init.add_argument("--title", default="")
     init.add_argument("--purpose", default="")
+    init.add_argument("--human-action", dest="human_actions", action="append")
+    init.add_argument("--agent-action", dest="agent_actions", action="append")
+    init.add_argument("--promotion-target", dest="promotion_targets", action="append")
 
     list_cmd = sub.add_parser("list", help="List canvases.")
     list_cmd.add_argument("--lifecycle", choices=["active", "archived"])
@@ -70,6 +73,9 @@ def main(argv: list[str] | None = None) -> int:
                     anchor=args.anchor,
                     title=args.title,
                     purpose=args.purpose,
+                    human_actions=args.human_actions,
+                    agent_actions=args.agent_actions,
+                    promotion_targets=args.promotion_targets,
                 )
             )
         elif args.command == "list":

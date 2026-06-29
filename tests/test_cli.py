@@ -33,9 +33,19 @@ class CanvasCliTests(unittest.TestCase):
                 "thread",
                 "--purpose",
                 "cli test",
+                "--human-action",
+                "approve_cli",
+                "--agent-action",
+                "summarize_cli",
+                "--promotion-target",
+                "cli-report",
             )
             self.assertEqual(init.returncode, 0, init.stderr)
-            self.assertEqual(json.loads(init.stdout)["id"], "cli-smoke")
+            created = json.loads(init.stdout)
+            self.assertEqual(created["id"], "cli-smoke")
+            self.assertEqual(created["human_actions"], ["approve_cli"])
+            self.assertEqual(created["agent_actions"], ["summarize_cli"])
+            self.assertEqual(created["promotion_targets"], ["cli-report"])
 
             validate = self.run_cli("--root", tmp, "validate", "cli-smoke")
             self.assertEqual(validate.returncode, 0, validate.stdout)
@@ -45,6 +55,19 @@ class CanvasCliTests(unittest.TestCase):
             self.assertEqual(export.returncode, 0, export.stdout)
             html_path = Path(json.loads(export.stdout)["html_path"])
             self.assertTrue(html_path.exists())
+
+            promote = self.run_cli(
+                "--root",
+                tmp,
+                "promote",
+                "cli-smoke",
+                "--target",
+                "cli-report",
+                "--reference",
+                "outputs/cli-report.md",
+            )
+            self.assertEqual(promote.returncode, 0, promote.stdout)
+            self.assertEqual(json.loads(promote.stdout)["promotions"][-1]["target"], "cli-report")
 
             archive = self.run_cli("--root", tmp, "archive", "cli-smoke")
             self.assertEqual(archive.returncode, 0, archive.stdout)

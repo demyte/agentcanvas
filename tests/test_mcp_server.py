@@ -73,11 +73,22 @@ class McpServerTests(unittest.TestCase):
                     "method": "tools/call",
                     "params": {
                         "name": "canvas_init",
-                        "arguments": {"id": "MCP Test", "scope": "project", "root": tmp},
+                        "arguments": {
+                            "id": "MCP Test",
+                            "scope": "project",
+                            "root": tmp,
+                            "human_actions": ["approve_custom_target"],
+                            "agent_actions": ["prepare_custom_summary"],
+                            "promotion_targets": ["custom-report"],
+                        },
                     },
                 }
             )
             self.assertFalse(created["result"]["isError"])
+            created_payload = json.loads(created["result"]["content"][0]["text"])
+            self.assertEqual(created_payload["human_actions"], ["approve_custom_target"])
+            self.assertEqual(created_payload["agent_actions"], ["prepare_custom_summary"])
+            self.assertEqual(created_payload["promotion_targets"], ["custom-report"])
 
             validated = self.send(
                 {
@@ -108,6 +119,26 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(exported["result"]["isError"])
             html_path = Path(json.loads(exported["result"]["content"][0]["text"])["html_path"])
             self.assertTrue(html_path.exists())
+
+            promoted = self.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 6,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_promote",
+                        "arguments": {
+                            "id": "mcp-test",
+                            "target": "custom-report",
+                            "reference": "outputs/custom.md",
+                            "root": tmp,
+                        },
+                    },
+                }
+            )
+            self.assertFalse(promoted["result"]["isError"])
+            promoted_payload = json.loads(promoted["result"]["content"][0]["text"])
+            self.assertEqual(promoted_payload["promotions"][-1]["target"], "custom-report")
 
     def test_handle_request_ignores_json_rpc_error_messages(self) -> None:
         response = canvas_mcp_server.handle_request(

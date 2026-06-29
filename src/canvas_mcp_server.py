@@ -51,6 +51,9 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "anchor": {"type": "string", "default": ""},
                 "title": {"type": "string", "default": ""},
                 "purpose": {"type": "string", "default": ""},
+                "human_actions": {"type": "array", "items": {"type": "string"}, "default": []},
+                "agent_actions": {"type": "array", "items": {"type": "string"}, "default": []},
+                "promotion_targets": {"type": "array", "items": {"type": "string"}, "default": []},
                 "root": {"type": "string", "default": ""},
             },
             ["id", "scope"],
@@ -163,6 +166,9 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
                 anchor=args.get("anchor", ""),
                 title=args.get("title", ""),
                 purpose=args.get("purpose", ""),
+                human_actions=args.get("human_actions") or None,
+                agent_actions=args.get("agent_actions") or None,
+                promotion_targets=args.get("promotion_targets") or None,
             )
         )
     if name == "canvas_list":
