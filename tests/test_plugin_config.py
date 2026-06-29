@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from pathlib import Path
 
@@ -15,14 +16,17 @@ class PluginConfigTests(unittest.TestCase):
 
         self.assert_server_uses_plugin_relative_startup(server)
 
-    def test_plugin_manifest_declares_mcp_server_directly(self) -> None:
+    def test_plugin_manifest_points_to_mcp_companion_file(self) -> None:
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
-        server = manifest["mcpServers"]["canvas"]
-
-        self.assert_server_uses_plugin_relative_startup(server)
+        self.assertEqual(manifest["mcpServers"], "./.mcp.json")
 
     def assert_server_uses_plugin_relative_startup(self, server: dict[str, object]) -> None:
-        self.assertEqual(server["command"], "python")
+        command = str(server["command"])
+        if os.name == "nt":
+            self.assertTrue(Path(command).is_absolute())
+            self.assertTrue(Path(command).exists())
+        else:
+            self.assertEqual(command, "python")
         self.assertEqual(server["args"], ["./src/canvas_mcp_server.py"])
         self.assertEqual(server["cwd"], ".")
         args = server["args"]

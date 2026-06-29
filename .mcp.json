@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "canvas": {
-      "command": "python",
+      "command": "C:\\Users\\james\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
       "args": [
         "./src/canvas_mcp_server.py"
       ],
