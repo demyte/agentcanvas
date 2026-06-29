@@ -63,6 +63,10 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("canvas_init", names)
         self.assertIn("canvas_validate", names)
         self.assertIn("canvas_export_html", names)
+        canvas_list = next(tool for tool in tools["result"]["tools"] if tool["name"] == "canvas_list")
+        self.assertIn("threadId", canvas_list["inputSchema"]["properties"])
+        canvas_init = next(tool for tool in tools["result"]["tools"] if tool["name"] == "canvas_init")
+        self.assertIn("associatedThreads", canvas_init["inputSchema"]["properties"])
         self.assertIsNone(tools["result"]["nextCursor"])
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -80,6 +84,7 @@ class McpServerTests(unittest.TestCase):
                             "human_actions": ["approve_custom_target"],
                             "agent_actions": ["prepare_custom_summary"],
                             "promotion_targets": ["custom-report"],
+                            "associatedThreads": ["thread-alpha", "thread-shared"],
                         },
                     },
                 }
@@ -89,6 +94,40 @@ class McpServerTests(unittest.TestCase):
             self.assertEqual(created_payload["human_actions"], ["approve_custom_target"])
             self.assertEqual(created_payload["agent_actions"], ["prepare_custom_summary"])
             self.assertEqual(created_payload["promotion_targets"], ["custom-report"])
+            self.assertEqual(created_payload["associatedThreads"], ["thread-alpha", "thread-shared"])
+
+            other = self.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 31,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_init",
+                        "arguments": {
+                            "id": "Other MCP Test",
+                            "scope": "thread",
+                            "root": tmp,
+                            "associatedThreads": ["thread-beta"],
+                        },
+                    },
+                }
+            )
+            self.assertFalse(other["result"]["isError"])
+
+            thread_list = self.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 32,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_list",
+                        "arguments": {"threadId": "thread-alpha", "root": tmp},
+                    },
+                }
+            )
+            self.assertFalse(thread_list["result"]["isError"])
+            thread_list_payload = json.loads(thread_list["result"]["content"][0]["text"])
+            self.assertEqual([item["id"] for item in thread_list_payload], ["mcp-test"])
 
             validated = self.send(
                 {

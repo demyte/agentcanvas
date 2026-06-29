@@ -54,16 +54,18 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "human_actions": {"type": "array", "items": {"type": "string"}, "default": []},
                 "agent_actions": {"type": "array", "items": {"type": "string"}, "default": []},
                 "promotion_targets": {"type": "array", "items": {"type": "string"}, "default": []},
+                "associatedThreads": {"type": "array", "items": {"type": "string"}, "default": []},
                 "root": {"type": "string", "default": ""},
             },
             ["id", "scope"],
         ),
     },
     "canvas_list": {
-        "description": "List active and archived canvases.",
+        "description": "List canvases, optionally filtered by lifecycle or associated thread.",
         "inputSchema": schema(
             {
                 "lifecycle": {"type": "string", "enum": ["active", "archived"]},
+                "threadId": {"type": "string", "default": ""},
                 "root": {"type": "string", "default": ""},
             }
         ),
@@ -169,10 +171,11 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
                 human_actions=args.get("human_actions") or None,
                 agent_actions=args.get("agent_actions") or None,
                 promotion_targets=args.get("promotion_targets") or None,
+                associated_threads=args.get("associatedThreads") or None,
             )
         )
     if name == "canvas_list":
-        return as_tool_result(registry.list_canvases(args.get("lifecycle")))
+        return as_tool_result(registry.list_canvases(args.get("lifecycle"), args.get("threadId")))
     if name == "canvas_get":
         return as_tool_result(registry.get_canvas(args["id"], args.get("lifecycle")))
     if name == "canvas_update_state":

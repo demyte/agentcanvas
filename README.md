@@ -68,6 +68,15 @@ Run CLI locally:
 python scripts\canvas.py --help
 ```
 
+Thread-associated canvases:
+
+```powershell
+python scripts\canvas.py init thread-brief --scope thread --associated-thread <thread-id>
+python scripts\canvas.py list --thread-id <thread-id>
+```
+
+The MCP equivalents are `canvas_init` with `associatedThreads` and `canvas_list` with `threadId`.
+
 ## Storage
 
 Path ownership is split deliberately:

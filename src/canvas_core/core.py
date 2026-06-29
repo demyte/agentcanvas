@@ -90,6 +90,10 @@ def coerce_list(values: list[str] | None, fallback: list[str]) -> list[str]:
     return clean
 
 
+def coerce_thread_ids(values: list[str] | None) -> list[str]:
+    return coerce_list(values, [])
+
+
 def anchor_fingerprint(anchor: str | None) -> str:
     if not anchor:
         return ""
@@ -131,6 +135,7 @@ class CanvasRegistry:
         human_actions: list[str] | None = None,
         agent_actions: list[str] | None = None,
         promotion_targets: list[str] | None = None,
+        associated_threads: list[str] | None = None,
     ) -> dict[str, Any]:
         self.ensure_root()
         normalized_id = normalize_canvas_id(canvas_id)
@@ -145,6 +150,7 @@ class CanvasRegistry:
         canvas_dir.mkdir(parents=True)
         now = utc_now()
         state_files = ["state.json", "notes.md"]
+        associated_thread_ids = coerce_thread_ids(associated_threads)
         metadata = {
             "id": normalized_id,
             "kind": "canvas",
@@ -159,6 +165,7 @@ class CanvasRegistry:
             "purpose": purpose,
             "created_from_thread": "",
             "last_updated_from_thread": "",
+            "associatedThreads": associated_thread_ids,
             "created_at": now,
             "updated_at": now,
             "state_files": state_files,
@@ -186,9 +193,10 @@ class CanvasRegistry:
         (canvas_dir / "README.md").write_text(self._readme_text(metadata), encoding="utf-8")
         return metadata
 
-    def list_canvases(self, lifecycle: str | None = None) -> list[dict[str, Any]]:
+    def list_canvases(self, lifecycle: str | None = None, thread_id: str | None = None) -> list[dict[str, Any]]:
         self.ensure_root()
         lifecycles = [lifecycle] if lifecycle else ["active", "archived"]
+        thread_id = thread_id.strip() if thread_id else None
         records: list[dict[str, Any]] = []
         for item in lifecycles:
             if item not in LIFECYCLES:
@@ -196,8 +204,13 @@ class CanvasRegistry:
             base = getattr(self.paths, item)
             for metadata_file in sorted(base.glob("*/canvas.json")):
                 try:
-                    records.append(self._read_json(metadata_file))
+                    metadata = self._read_json(metadata_file)
+                    if thread_id and thread_id not in metadata.get("associatedThreads", []):
+                        continue
+                    records.append(metadata)
                 except (OSError, json.JSONDecodeError):
+                    if thread_id:
+                        continue
                     records.append({"id": metadata_file.parent.name, "lifecycle": item, "invalid": True})
         return records
 
@@ -265,6 +278,12 @@ class CanvasRegistry:
             errors.append("lifecycle must be active or archived")
         if metadata.get("scope") not in SCOPES:
             errors.append(f"scope must be one of {sorted(SCOPES)}")
+        if "associatedThreads" in metadata:
+            associated_threads = metadata["associatedThreads"]
+            if not isinstance(associated_threads, list) or not all(
+                isinstance(item, str) and item.strip() for item in associated_threads
+            ):
+                errors.append("associatedThreads must be an array of non-empty strings")
 
         for filename in metadata.get("state_files", []):
             try:

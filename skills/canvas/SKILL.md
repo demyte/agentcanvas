@@ -57,12 +57,12 @@ Prefer `repo` or `project` when a real anchor exists. Use `thread` only when no 
 
 The MCP maintains the core files:
 
-- `canvas.json`: id, lifecycle, authority, scope, anchor, timestamps, state files, capabilities, promotion targets.
+- `canvas.json`: id, lifecycle, authority, scope, anchor, associatedThreads, timestamps, state files, capabilities, promotion targets.
 - `state.json`: structured shared state.
 - `notes.md`: readable working notes.
 - `README.md`: quick human/agent orientation.
 
-Populate thread identifiers only when available. Leave them blank rather than inventing them.
+For thread-scoped canvases, pass one or more known thread identifiers as `associatedThreads` to `canvas_init`. Use `canvas_list` with `threadId` to find canvases tied to a thread. Populate thread identifiers only when available; leave them empty rather than inventing them.
 
 ## Capabilities
 

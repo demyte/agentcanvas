@@ -174,6 +174,7 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
             "anchor": "Codex thread: canvas scenario validation",
             "title": "Thread Research Brief",
             "purpose": "Track a short-lived research thread and promote a final report reference.",
+            "associatedThreads": ["thread-scenario-research", "thread-scenario-shared"],
             "root": str(root),
         },
         request_id,
@@ -211,6 +212,13 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
     request_id += 1
     validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
+    thread_list = call_tool(
+        client,
+        "canvas_list",
+        {"threadId": "thread-scenario-research", "root": str(root)},
+        request_id,
+    )
+    request_id += 1
     export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
@@ -218,9 +226,9 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
     return request_id, {
         "name": "Thread research brief",
         "id": canvas_id,
-        "passed": validation["valid"] and promoted["scope"] == "thread",
+        "passed": validation["valid"] and promoted["scope"] == "thread" and [item["id"] for item in thread_list] == [canvas_id],
         "html_path": str(html_path),
-        "checks": ["thread scope", "update_state", "final-report promotion", "validate", "export_html"],
+        "checks": ["thread scope", "associatedThreads", "threadId list filter", "update_state", "final-report promotion", "validate", "export_html"],
     }
 
 

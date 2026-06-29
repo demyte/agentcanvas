@@ -27,9 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--human-action", dest="human_actions", action="append")
     init.add_argument("--agent-action", dest="agent_actions", action="append")
     init.add_argument("--promotion-target", dest="promotion_targets", action="append")
+    init.add_argument("--associated-thread", dest="associated_threads", action="append")
 
     list_cmd = sub.add_parser("list", help="List canvases.")
     list_cmd.add_argument("--lifecycle", choices=["active", "archived"])
+    list_cmd.add_argument("--thread-id", dest="thread_id")
 
     get = sub.add_parser("get", help="Read canvas metadata.")
     get.add_argument("id")
@@ -76,10 +78,11 @@ def main(argv: list[str] | None = None) -> int:
                     human_actions=args.human_actions,
                     agent_actions=args.agent_actions,
                     promotion_targets=args.promotion_targets,
+                    associated_threads=args.associated_threads,
                 )
             )
         elif args.command == "list":
-            print_json(registry.list_canvases(args.lifecycle))
+            print_json(registry.list_canvases(args.lifecycle, args.thread_id))
         elif args.command == "get":
             print_json(registry.get_canvas(args.id, args.lifecycle))
         elif args.command == "validate":

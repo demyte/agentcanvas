@@ -159,10 +159,18 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
                             "scope": "thread",
                             "title": "MCP Smoke",
                             "purpose": "automated MCP smoke test",
+                            "associatedThreads": ["thread-smoke", "thread-shared"],
                             "root": tmp,
                         },
                     },
                     request_id=3,
+                )
+            )
+            listed_by_thread = tool_payload(
+                client.request(
+                    "tools/call",
+                    {"name": "canvas_list", "arguments": {"threadId": "thread-smoke", "root": tmp}},
+                    request_id=30,
                 )
             )
             active = tool_payload(
@@ -209,10 +217,13 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
 
         if not active["valid"] or not archived_validation["valid"]:
             raise SmokeFailure(f"Validation failed: active={active} archived={archived_validation}")
+        if [item["id"] for item in listed_by_thread] != [canvas_id]:
+            raise SmokeFailure(f"Thread-filtered list was unexpected: {listed_by_thread}")
         return {
             "server": {"command": command, "cwd": str(cwd)},
             "tools": [tool["name"] for tool in listed["result"]["tools"]],
             "created": created["id"],
+            "associatedThreads": created["associatedThreads"],
             "exports": {"active": exported["valid"], "archived": archived_export["valid"]},
             "archived": archived["lifecycle"],
             "validations": {"active": active["valid"], "archived": archived_validation["valid"]},

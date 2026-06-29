@@ -39,6 +39,10 @@ class CanvasCliTests(unittest.TestCase):
                 "summarize_cli",
                 "--promotion-target",
                 "cli-report",
+                "--associated-thread",
+                "thread-cli",
+                "--associated-thread",
+                "thread-shared",
             )
             self.assertEqual(init.returncode, 0, init.stderr)
             created = json.loads(init.stdout)
@@ -46,6 +50,11 @@ class CanvasCliTests(unittest.TestCase):
             self.assertEqual(created["human_actions"], ["approve_cli"])
             self.assertEqual(created["agent_actions"], ["summarize_cli"])
             self.assertEqual(created["promotion_targets"], ["cli-report"])
+            self.assertEqual(created["associatedThreads"], ["thread-cli", "thread-shared"])
+
+            list_result = self.run_cli("--root", tmp, "list", "--thread-id", "thread-cli")
+            self.assertEqual(list_result.returncode, 0, list_result.stdout)
+            self.assertEqual([item["id"] for item in json.loads(list_result.stdout)], ["cli-smoke"])
 
             validate = self.run_cli("--root", tmp, "validate", "cli-smoke")
             self.assertEqual(validate.returncode, 0, validate.stdout)

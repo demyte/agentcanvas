@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,6 +52,7 @@ class CanvasCoreTests(unittest.TestCase):
 
             self.assertEqual(metadata["id"], "lifecycle-check")
             self.assertEqual(metadata["lifecycle"], "active")
+            self.assertEqual(metadata["associatedThreads"], [])
             self.assertTrue((Path(tmp) / "active" / "lifecycle-check" / "canvas.json").exists())
             self.assertTrue(registry.validate_canvas("lifecycle-check")["valid"])
 
@@ -79,6 +81,43 @@ class CanvasCoreTests(unittest.TestCase):
             archived = registry.archive_canvas("lifecycle-check")
             self.assertEqual(archived["lifecycle"], "archived")
             self.assertTrue(registry.validate_canvas("lifecycle-check", "archived")["valid"])
+
+    def test_canvas_list_filters_by_associated_thread(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            first = registry.init_canvas(
+                "Thread One",
+                scope="thread",
+                associated_threads=["thread-a", "thread-shared"],
+            )
+            registry.init_canvas(
+                "Thread Two",
+                scope="thread",
+                associated_threads=["thread-b", "thread-shared"],
+            )
+            registry.init_canvas("No Thread", scope="project")
+
+            self.assertEqual(first["associatedThreads"], ["thread-a", "thread-shared"])
+            thread_a = registry.list_canvases(thread_id="thread-a")
+            thread_shared = registry.list_canvases(thread_id="thread-shared")
+            missing = registry.list_canvases(thread_id="missing-thread")
+
+            self.assertEqual([item["id"] for item in thread_a], ["thread-one"])
+            self.assertEqual({item["id"] for item in thread_shared}, {"thread-one", "thread-two"})
+            self.assertEqual(missing, [])
+
+    def test_associated_threads_must_be_non_empty_strings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Bad Threads", scope="thread")
+            metadata_file = Path(tmp) / "active" / "bad-threads" / "canvas.json"
+            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+            metadata["associatedThreads"] = ["ok", ""]
+            metadata_file.write_text(json.dumps(metadata), encoding="utf-8")
+
+            validation = registry.validate_canvas("bad-threads")
+            self.assertFalse(validation["valid"])
+            self.assertIn("associatedThreads must be an array of non-empty strings", validation["errors"])
 
     def test_reject_duplicate_canvas(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
