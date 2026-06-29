@@ -34,3 +34,25 @@ Run CLI locally:
 ```powershell
 python scripts\canvas.py --help
 ```
+
+## Codex Connection
+
+The plugin manifest is at:
+
+```text
+.codex-plugin/plugin.json
+```
+
+The MCP server config is at:
+
+```text
+.mcp.json
+```
+
+The MCP server entry point is:
+
+```text
+src/canvas_mcp_server.py
+```
+
+This repo is ready to be added to a local Codex plugin marketplace. The current build does not modify any global Codex marketplace files automatically.
