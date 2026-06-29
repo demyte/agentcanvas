@@ -3,8 +3,10 @@
     "canvas": {
       "command": "python",
       "args": [
-        "D:\\Projects\\canvas\\src\\canvas_mcp_server.py"
-      ]
+        "./src/canvas_mcp_server.py"
+      ],
+      "cwd": ".",
+      "tool_timeout_sec": 60
     }
   }
 }

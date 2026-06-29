@@ -55,4 +55,10 @@ The MCP server entry point is:
 src/canvas_mcp_server.py
 ```
 
+The plugin MCP config starts the server relative to the installed plugin root:
+
+```text
+python ./src/canvas_mcp_server.py
+```
+
 This repo is ready to be added to a local Codex plugin marketplace. The current build does not modify any global Codex marketplace files automatically.
