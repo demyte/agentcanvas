@@ -41,6 +41,9 @@ def call_tool_error(client: McpClient, name: str, arguments: dict[str, Any], req
 
 def ensure_contains(path: Path, expected: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
+    sidecar = path.parent / "canvas-data.js"
+    if sidecar.exists():
+        text += "\n" + sidecar.read_text(encoding="utf-8")
     missing = [item for item in expected if item not in text]
     if missing:
         raise SmokeFailure(f"{path} missing expected text: {missing}")
@@ -87,7 +90,7 @@ def scenario_repo_review(client: McpClient, root: Path, request_id: int) -> tupl
     export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
-    ensure_contains(html_path, ["Canvas Repo Architecture Review", "Repo is anchor, not storage", "valid: true"])
+    ensure_contains(html_path, ["Canvas Repo Architecture Review", "Repo is anchor, not storage", '"valid": true'])
     if str(ROOT) == init["storage_path"]:
         raise SmokeFailure("Repo scenario stored the canvas directly in the repo anchor.")
     return request_id, {
@@ -272,7 +275,7 @@ def scenario_user_registry_archive(client: McpClient, root: Path, request_id: in
     )
     request_id += 1
     html_path = Path(export["html_path"])
-    ensure_contains(html_path, ["User Registry Cleanup", "lifecycle: archived", "stale-canvas-review"])
+    ensure_contains(html_path, ["User Registry Cleanup", '"lifecycle": "archived"', "stale-canvas-review"])
     return request_id, {
         "name": "User registry archive",
         "id": canvas_id,
@@ -327,7 +330,7 @@ def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> t
     export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
-    ensure_contains(html_path, ["Error Recovery", "valid: true"])
+    ensure_contains(html_path, ["Error Recovery", '"valid": true'])
     return request_id, {
         "name": "Error recovery",
         "id": canvas_id,
@@ -696,6 +699,335 @@ def scenario_editorial_calendar(client: McpClient, root: Path, request_id: int) 
     }
 
 
+def scenario_food_service_prep(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-food-service-prep"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "venue://market-stall/saturday-service",
+            "title": "Saturday Service Prep Board",
+            "purpose": "Coordinate menu, prep quantities, and service risks before writing a final run sheet.",
+            "human_actions": ["approve_menu", "adjust_batch_size", "mark_supplier_confirmed"],
+            "agent_actions": ["scale_recipe_quantities", "summarize_prep_risks", "draft_service_run_sheet"],
+            "promotion_targets": ["service-run-sheet", "supplier-order"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "menu": [
+                    {"item": "miso mushroom bowls", "target_serves": 90, "prep_status": "batching"},
+                    {"item": "ginger lime spritz", "target_serves": 120, "prep_status": "supplier pending"},
+                ],
+                "cold_chain": {"ice_packs": 18, "esky_labels": ["sauce", "greens", "drinks"]},
+                "service_risks": ["rain frontage", "limited handwash access", "card reader battery"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "service-run-sheet",
+            "reference": "ops://market-stall/saturday-run-sheet",
+            "note": "scenario-only run sheet",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Saturday Service Prep Board", "miso mushroom bowls", "service-run-sheet"])
+    return request_id, {
+        "name": "Food service prep",
+        "id": canvas_id,
+        "passed": validation["valid"] and created["scope"] == "project" and promoted["promotions"][-1]["target"] == "service-run-sheet",
+        "html_path": str(html_path),
+        "checks": ["menu state", "cold-chain state", "custom service target", "validate", "export_html"],
+    }
+
+
+def scenario_film_shoot_day(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-film-shoot-day"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "production://short-film/day-03",
+            "title": "Short Film Shoot Day Board",
+            "purpose": "Track shot readiness, locations, and continuity before a call sheet is locked.",
+            "human_actions": ["approve_shot_order", "flag_continuity_issue", "confirm_location_release"],
+            "agent_actions": ["summarize_shot_risk", "regenerate_call_sheet", "check_prop_dependencies"],
+            "promotion_targets": ["call-sheet", "shot-list"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "shots": [
+                    {"scene": "3A", "lens": "35mm", "location": "alley", "status": "ready"},
+                    {"scene": "4C", "lens": "85mm", "location": "rooftop", "status": "weather hold"},
+                    {"scene": "7B", "lens": "24mm", "location": "van interior", "status": "prop missing"},
+                ],
+                "continuity": ["coffee cup hand switches in scene 3A", "jacket zipper position"],
+                "crew_calls": {"camera": "05:30", "sound": "05:45", "talent": "06:15"},
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "call-sheet",
+            "reference": "production://short-film/day-03/call-sheet",
+            "note": "scenario-only call sheet",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Short Film Shoot Day Board", "weather hold", "call-sheet"])
+    return request_id, {
+        "name": "Film shoot day",
+        "id": canvas_id,
+        "passed": validation["valid"] and created["promotion_targets"][0] == "call-sheet" and promoted["promotions"][-1]["target"] == "call-sheet",
+        "html_path": str(html_path),
+        "checks": ["shot list state", "continuity state", "call-sheet promotion", "validate", "export_html"],
+    }
+
+
+def scenario_lab_specimen_chain(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-lab-specimen-chain"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "lab://field-samples/batch-17",
+            "title": "Field Specimen Chain Board",
+            "purpose": "Track sample custody and assay readiness before updating the lab register.",
+            "human_actions": ["verify_custody", "quarantine_sample", "approve_assay_batch"],
+            "agent_actions": ["check_missing_temperatures", "summarize_chain_breaks", "draft_lab_register_update"],
+            "promotion_targets": ["lab-register", "assay-plan"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "samples": [
+                    {"id": "FS-17-001", "temp_c": 4.1, "custody": "checked-in", "assay": "pcr"},
+                    {"id": "FS-17-002", "temp_c": 7.8, "custody": "quarantine", "assay": "hold"},
+                    {"id": "FS-17-003", "temp_c": 3.9, "custody": "checked-in", "assay": "culture"},
+                ],
+                "chain_breaks": ["FS-17-002 exceeded cold range for 18 minutes"],
+                "register_status": "not-promoted",
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "lab-register",
+            "reference": "lab-register://batch-17/staged",
+            "note": "scenario-only register staging",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Field Specimen Chain Board", "FS-17-002", "lab-register"])
+    return request_id, {
+        "name": "Lab specimen chain",
+        "id": canvas_id,
+        "passed": validation["valid"] and created["scope"] == "project" and promoted["promotions"][-1]["target"] == "lab-register",
+        "html_path": str(html_path),
+        "checks": ["sample custody state", "quarantine state", "lab-register promotion", "validate", "export_html"],
+    }
+
+
+def scenario_emergency_supply_cache(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-emergency-supply-cache"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "user",
+            "anchor": "home://storm-season/supply-cache",
+            "title": "Storm Season Supply Cache",
+            "purpose": "Plan household emergency supplies before promoting anything into durable household records.",
+            "human_actions": ["mark_bin_checked", "approve_purchase", "assign_pack_owner"],
+            "agent_actions": ["calculate_day_coverage", "summarize_gaps", "draft_purchase_list"],
+            "promotion_targets": ["household-checklist", "purchase-list"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "bins": [
+                    {"name": "water", "days": 3, "status": "short"},
+                    {"name": "lighting", "days": 7, "status": "ready"},
+                    {"name": "first aid", "days": 14, "status": "check expiry"},
+                ],
+                "purchase_gaps": ["water containers", "radio batteries", "pet food"],
+                "owners": {"water": "James", "first aid": "family review"},
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "purchase-list",
+            "reference": "household://storm-season/purchase-list",
+            "note": "scenario-only shopping list",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Storm Season Supply Cache", "water containers", "purchase-list"])
+    return request_id, {
+        "name": "Emergency supply cache",
+        "id": canvas_id,
+        "passed": validation["valid"] and created["scope"] == "user" and promoted["promotions"][-1]["target"] == "purchase-list",
+        "html_path": str(html_path),
+        "checks": ["household supply state", "coverage gaps", "purchase-list promotion", "validate", "export_html"],
+    }
+
+
+def scenario_game_balance_lab(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-game-balance-lab"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "game://deckbuilder/prototype-2",
+            "title": "Deckbuilder Balance Lab",
+            "purpose": "Track playtest signals and tuning hypotheses before changing game source assets.",
+            "human_actions": ["approve_card_tweak", "reject_playtest_outlier", "schedule_rematch"],
+            "agent_actions": ["summarize_playtest_delta", "rank_balance_risks", "draft_patch_notes"],
+            "promotion_targets": ["design-changelog", "playtest-report"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "cards": [
+                    {"name": "Spark Engine", "win_rate": 0.64, "proposal": "-1 charge"},
+                    {"name": "Ash Sentinel", "win_rate": 0.42, "proposal": "+1 armor"},
+                    {"name": "Market Trick", "win_rate": 0.51, "proposal": "no change"},
+                ],
+                "playtests": {"matches": 48, "median_turns": 8, "stall_reports": 6},
+                "hypotheses": ["Spark Engine snowballs too early", "Ash Sentinel underperforms into control"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "playtest-report",
+            "reference": "playtests://deckbuilder/prototype-2/report",
+            "note": "scenario-only balance report",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Deckbuilder Balance Lab", "Spark Engine", "playtest-report"])
+    return request_id, {
+        "name": "Game balance lab",
+        "id": canvas_id,
+        "passed": validation["valid"] and created["promotion_targets"][1] == "playtest-report" and promoted["promotions"][-1]["target"] == "playtest-report",
+        "html_path": str(html_path),
+        "checks": ["playtest state", "balance hypotheses", "playtest-report promotion", "validate", "export_html"],
+    }
+
+
 def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any]], resource_counts: dict[str, int]) -> Path:
     def report_link(path: str) -> str:
         relative = Path(path).resolve().relative_to(output.resolve()).as_posix()
@@ -810,6 +1142,11 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
             scenario_data_migration_cutover,
             scenario_hiring_review_panel,
             scenario_editorial_calendar,
+            scenario_food_service_prep,
+            scenario_film_shoot_day,
+            scenario_lab_specimen_chain,
+            scenario_emergency_supply_cache,
+            scenario_game_balance_lab,
         ]:
             request_id, result = scenario(client, canvas_root, request_id)
             scenarios.append(result)

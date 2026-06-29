@@ -53,8 +53,11 @@ class CanvasCliTests(unittest.TestCase):
 
             export = self.run_cli("--root", tmp, "export-html", "cli-smoke")
             self.assertEqual(export.returncode, 0, export.stdout)
-            html_path = Path(json.loads(export.stdout)["html_path"])
+            export_payload = json.loads(export.stdout)
+            html_path = Path(export_payload["html_path"])
+            data_path = Path(export_payload["data_path"])
             self.assertTrue(html_path.exists())
+            self.assertTrue(data_path.exists())
 
             promote = self.run_cli(
                 "--root",

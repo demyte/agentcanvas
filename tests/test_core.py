@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from canvas_core import CanvasRegistry, CanvasValidationError, normalize_canvas_id
 
+TEMPLATE = ROOT / "templates" / "canvas-viewer.html"
+
 
 class CanvasCoreTests(unittest.TestCase):
     def test_normalize_canvas_id(self) -> None:
@@ -45,10 +47,13 @@ class CanvasCoreTests(unittest.TestCase):
 
             exported = registry.export_html("lifecycle-check")
             html_path = Path(exported["html_path"])
+            data_path = Path(exported["data_path"])
             self.assertTrue(html_path.exists())
-            html = html_path.read_text(encoding="utf-8")
-            self.assertIn("Lifecycle Check", html)
-            self.assertIn("final-report", html)
+            self.assertTrue(data_path.exists())
+            self.assertEqual(html_path.read_text(encoding="utf-8"), TEMPLATE.read_text(encoding="utf-8"))
+            data_text = data_path.read_text(encoding="utf-8")
+            self.assertIn("Lifecycle Check", data_text)
+            self.assertIn("final-report", data_text)
             self.assertTrue(exported["valid"])
 
             archived = registry.archive_canvas("lifecycle-check")

@@ -35,7 +35,7 @@ Run full validation plus the installed personal plugin cache smoke:
 python scripts\validate.py --installed
 ```
 
-Run the full validation plus the ten-scenario MCP/browser-surface suite:
+Run the full validation plus the fifteen-scenario MCP/browser-surface suite:
 
 ```powershell
 python scripts\validate.py --scenarios
@@ -102,7 +102,7 @@ The automated checks are layered:
 
 - Unit tests cover the registry, CLI, plugin config, MCP methods, error handling, and probes.
 - `scripts\smoke_mcp.py` starts the MCP server through the plugin `.mcp.json` command and uses Codex-compatible newline JSON-RPC over stdio.
-- `scripts\run_scenarios.py` drives ten end-to-end MCP scenarios and renders HTML surfaces for browser validation.
+- `scripts\run_scenarios.py` drives fifteen end-to-end MCP scenarios and renders HTML surfaces for browser validation.
 - `scripts\validate.py` runs compile checks, unit tests, source MCP smoke, optional scenario validation, and plugin manifest validation.
 - `scripts\validate.py --installed` additionally verifies the latest installed `canvas@personal` plugin cache.
 
@@ -117,6 +117,8 @@ python scripts\canvas.py export-html <canvas-id>
 ```
 
 The MCP equivalent is `canvas_export_html`. The HTML export is a review surface for the current working artifact; it does not promote canvas content into durable project state by itself.
+
+The exported `canvas.html` is copied from the checked-in disk template at `templates\canvas-viewer.html`. Export does not build HTML with Python string templates. Canvas-specific state is written beside it as `canvas-data.js`, and the page reads that local sidecar file in the browser.
 
 ## Custom Capabilities
 

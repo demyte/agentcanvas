@@ -133,6 +133,8 @@ Use the lightest surface that helps:
 
 When the Canvas MCP tools are available, use `canvas_export_html` to turn an active or archived canvas into a static `canvas.html` review surface for browser inspection. Treat this as a view of the working artifact, not as promotion into project memory, docs, dashboards, or source.
 
+Static HTML surfaces must be real HTML pages on disk. Prefer copying or editing a checked-in template and placing local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from a script string. Interactive static pages may use JavaScript and CDN libraries. If a surface needs a framework, use Tailwind and shadcn/ui with the framework that best fits the project.
+
 ## Repo And Project Hygiene
 
 Do not assume repo-local storage is wanted.

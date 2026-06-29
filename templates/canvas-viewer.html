@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./canvas-data.js"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-950">
+  <main class="mx-auto max-w-7xl px-5 py-6 sm:px-8">
+    <header class="border-b border-slate-200 pb-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="min-w-0">
+          <h1 id="title" class="text-3xl font-semibold tracking-normal text-slate-950">Canvas</h1>
+          <p id="purpose" class="mt-2 max-w-3xl text-sm leading-6 text-slate-600"></p>
+          <div id="chips" class="mt-4 flex flex-wrap gap-2"></div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="overview">Overview</button>
+          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="state">State</button>
+          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="notes">Notes</button>
+          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="raw">Raw</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <label class="block">
+        <span class="sr-only">Filter canvas content</span>
+        <input id="filter" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500" placeholder="Filter visible canvas content">
+      </label>
+      <label class="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+        <input id="wrap-toggle" type="checkbox" class="h-4 w-4" checked>
+        Wrap raw text
+      </label>
+    </section>
+
+    <section id="overview" class="panel mt-5 grid gap-4 lg:grid-cols-3"></section>
+    <section id="state" class="panel mt-5 hidden"></section>
+    <section id="notes" class="panel mt-5 hidden"></section>
+    <section id="raw" class="panel mt-5 hidden"></section>
+  </main>
+
+  <template id="card-template">
+    <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="card-title text-base font-semibold tracking-normal text-slate-950"></h2>
+      <div class="card-body mt-3 text-sm leading-6 text-slate-700"></div>
+    </article>
+  </template>
+
+  <script>
+    const canvasData = window.CANVAS_DATA || {};
+    const metadata = canvasData.metadata || {};
+    const state = canvasData.state || {};
+    const validation = canvasData.validation || {};
+    const notes = canvasData.notes || "";
+
+    const escapeHtml = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+    const pretty = (value) => JSON.stringify(value ?? {}, null, 2);
+
+    function chip(text, tone = "slate") {
+      const tones = {
+        slate: "border-slate-300 bg-white text-slate-700",
+        green: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        amber: "border-amber-200 bg-amber-50 text-amber-800",
+        red: "border-red-200 bg-red-50 text-red-800",
+      };
+      return `<span class="rounded-md border px-2 py-1 text-xs ${tones[tone] || tones.slate}">${escapeHtml(text)}</span>`;
+    }
+
+    function card(title, body) {
+      const template = document.querySelector("#card-template");
+      const node = template.content.firstElementChild.cloneNode(true);
+      node.querySelector(".card-title").textContent = title;
+      node.querySelector(".card-body").innerHTML = body;
+      return node;
+    }
+
+    function list(items) {
+      if (!Array.isArray(items) || items.length === 0) return "<p class=\"text-slate-500\">None recorded.</p>";
+      return `<ul class="space-y-2">${items.map((item) => `<li class="rounded-md bg-slate-50 p-2"><code class="text-xs">${escapeHtml(typeof item === "string" ? item : pretty(item))}</code></li>`).join("")}</ul>`;
+    }
+
+    function renderOverview() {
+      const overview = document.querySelector("#overview");
+      overview.replaceChildren(
+        card("Anchor", `<pre class="overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(metadata.anchor || "")}</pre>`),
+        card("Human Actions", list(metadata.human_actions)),
+        card("Agent Actions", list(metadata.agent_actions)),
+        card("Promotion Targets", list(metadata.promotion_targets)),
+        card("Promotions", list(metadata.promotions)),
+        card("Validation", `<p>${validation.valid ? chip("valid", "green") : chip("invalid", "red")}</p><pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(validation))}</pre>`)
+      );
+    }
+
+    function renderState() {
+      const statePanel = document.querySelector("#state");
+      const keys = Object.keys(state).filter((key) => key !== "updated_at");
+      if (keys.length === 0) {
+        statePanel.innerHTML = `<article class="rounded-lg border border-slate-200 bg-white p-4">No state recorded.</article>`;
+        return;
+      }
+      statePanel.innerHTML = `<div class="grid gap-4 lg:grid-cols-2">${keys.map((key) => `
+        <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-base font-semibold tracking-normal">${escapeHtml(key)}</h2>
+          <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(state[key]))}</pre>
+        </article>
+      `).join("")}</div>`;
+    }
+
+    function renderNotes() {
+      document.querySelector("#notes").innerHTML = `
+        <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-base font-semibold tracking-normal">Notes</h2>
+          <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-sm leading-6">${escapeHtml(notes)}</pre>
+        </article>
+      `;
+    }
+
+    function renderRaw() {
+      document.querySelector("#raw").innerHTML = `
+        <div class="grid gap-4 lg:grid-cols-2">
+          ${["metadata", "state", "validation"].map((name) => `
+            <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 class="text-base font-semibold tracking-normal">${name}</h2>
+              <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(canvasData[name]))}</pre>
+            </article>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function activate(tabName) {
+      document.querySelectorAll(".panel").forEach((panel) => panel.classList.add("hidden"));
+      document.querySelector(`#${tabName}`).classList.remove("hidden");
+      document.querySelectorAll(".tab").forEach((button) => {
+        const active = button.dataset.tab === tabName;
+        button.classList.toggle("bg-slate-900", active);
+        button.classList.toggle("text-white", active);
+      });
+    }
+
+    function applyFilter() {
+      const query = document.querySelector("#filter").value.trim().toLowerCase();
+      document.querySelectorAll(".canvas-card").forEach((item) => {
+        item.classList.toggle("hidden", Boolean(query) && !item.textContent.toLowerCase().includes(query));
+      });
+    }
+
+    function applyWrap() {
+      const wrap = document.querySelector("#wrap-toggle").checked;
+      document.querySelectorAll(".raw-block").forEach((block) => {
+        block.classList.toggle("whitespace-pre-wrap", wrap);
+        block.classList.toggle("break-words", wrap);
+        block.classList.toggle("whitespace-pre", !wrap);
+      });
+    }
+
+    document.title = metadata.title || metadata.id || "Canvas";
+    document.querySelector("#title").textContent = metadata.title || metadata.id || "Canvas";
+    document.querySelector("#purpose").textContent = metadata.purpose || "";
+    document.querySelector("#chips").innerHTML = [
+      chip(`id: ${metadata.id || ""}`),
+      chip(`scope: ${metadata.scope || ""}`),
+      chip(`lifecycle: ${metadata.lifecycle || ""}`),
+      chip(`valid: ${Boolean(validation.valid)}`, validation.valid ? "green" : "red"),
+    ].join("");
+
+    renderOverview();
+    renderState();
+    renderNotes();
+    renderRaw();
+    activate("overview");
+    applyWrap();
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        activate(button.dataset.tab);
+        applyFilter();
+        applyWrap();
+      });
+    });
+    document.querySelector("#filter").addEventListener("input", applyFilter);
+    document.querySelector("#wrap-toggle").addEventListener("change", applyWrap);
+  </script>
+</body>
+</html>

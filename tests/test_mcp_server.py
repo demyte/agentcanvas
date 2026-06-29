@@ -117,8 +117,11 @@ class McpServerTests(unittest.TestCase):
                 }
             )
             self.assertFalse(exported["result"]["isError"])
-            html_path = Path(json.loads(exported["result"]["content"][0]["text"])["html_path"])
+            exported_payload = json.loads(exported["result"]["content"][0]["text"])
+            html_path = Path(exported_payload["html_path"])
+            data_path = Path(exported_payload["data_path"])
             self.assertTrue(html_path.exists())
+            self.assertTrue(data_path.exists())
 
             promoted = self.send(
                 {
