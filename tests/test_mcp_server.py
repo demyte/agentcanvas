@@ -41,6 +41,16 @@ class McpServerTests(unittest.TestCase):
         self.proc.stdin.write(b"Content-Length: " + str(len(body)).encode("ascii") + b"\r\n\r\n" + body)
         self.proc.stdin.flush()
         line = self.proc.stdout.readline()
+        self.assertFalse(line.lower().startswith(b"content-length:"), line)
+        return json.loads(line.decode("utf-8"))
+
+    def send_line(self, message: dict) -> dict:
+        assert self.proc.stdin is not None
+        assert self.proc.stdout is not None
+        self.proc.stdin.write(json.dumps(message, separators=(",", ":")).encode("utf-8") + b"\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        self.assertFalse(line.lower().startswith(b"content-length:"), line)
         return json.loads(line.decode("utf-8"))
 
     def test_initialize_tools_and_canvas_call(self) -> None:
@@ -92,6 +102,11 @@ class McpServerTests(unittest.TestCase):
     def test_ping_returns_empty_result(self) -> None:
         response = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": 99, "method": "ping"})
         self.assertEqual(response, {"jsonrpc": "2.0", "id": 99, "result": {}})
+
+    def test_newline_json_transport_matches_codex_stdio(self) -> None:
+        response = self.send_line({"jsonrpc": "2.0", "id": 10, "method": "tools/list", "params": {}})
+        self.assertIn("tools", response["result"])
+        self.assertIn("canvas_init", {tool["name"] for tool in response["result"]["tools"]})
 
     def test_startup_probe_writes_process_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

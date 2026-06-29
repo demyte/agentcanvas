@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
@@ -15,8 +16,15 @@ def run(command: list[str]) -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Run Canvas validation checks.")
+    parser.add_argument("--installed", action="store_true", help="Also smoke-test the installed personal plugin cache.")
+    args = parser.parse_args()
+
     run([sys.executable, "-m", "compileall", "src", "scripts", "tests"])
     run([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+    run([sys.executable, "scripts/smoke_mcp.py", "--canvas-id", "validate-source-smoke"])
+    if args.installed:
+        run([sys.executable, "scripts/smoke_mcp.py", "--installed", "--canvas-id", "validate-installed-smoke"])
     if PLUGIN_VALIDATOR.exists():
         run([sys.executable, str(PLUGIN_VALIDATOR), str(ROOT)])
     else:
@@ -26,4 +34,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
