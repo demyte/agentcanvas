@@ -135,6 +135,24 @@ When the Canvas MCP tools are available, use `canvas_export_html` to turn an act
 
 Static HTML surfaces must be real HTML pages on disk. Prefer copying or editing a checked-in template and placing local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from a script string. Interactive static pages may use JavaScript and CDN libraries. If a surface needs a framework, use Tailwind and shadcn/ui with the framework that best fits the project.
 
+Use this escalation path for browser surfaces:
+
+```text
+Default
+  Checked-in static HTML template plus local sidecar data files.
+
+Interactive but simple
+  Static HTML plus vanilla JavaScript and CDN libraries such as Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, or FullCalendar.
+
+Complex canvas app
+  Vite + React + TypeScript + Tailwind + shadcn/ui.
+
+Server/routing needed
+  Next.js + Tailwind + shadcn/ui only when the canvas genuinely needs server behavior, multi-route app structure, API routes, auth, or similar features.
+```
+
+Do not choose Next.js by default for local canvas artifacts. Prefer Vite + React when static HTML is no longer enough but the app can still build to static files.
+
 ## Repo And Project Hygiene
 
 Do not assume repo-local storage is wanted.

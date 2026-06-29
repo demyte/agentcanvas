@@ -120,6 +120,26 @@ The MCP equivalent is `canvas_export_html`. The HTML export is a review surface 
 
 The exported `canvas.html` is copied from the checked-in disk template at `templates\canvas-viewer.html`. Export does not build HTML with Python string templates. Canvas-specific state is written beside it as `canvas-data.js`, and the page reads that local sidecar file in the browser.
 
+## Surface Escalation
+
+Use the lightest browser surface that fits the workflow:
+
+```text
+Default
+  Checked-in static HTML template plus local sidecar data files.
+
+Interactive but simple
+  Static HTML plus vanilla JavaScript and CDN libraries such as Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, or FullCalendar.
+
+Complex canvas app
+  Vite + React + TypeScript + Tailwind + shadcn/ui.
+
+Server/routing needed
+  Next.js + Tailwind + shadcn/ui only when the canvas genuinely needs server behavior, multi-route app structure, API routes, auth, or similar features.
+```
+
+Do not use Next.js as the default local canvas framework. Prefer Vite + React when a static HTML template becomes too cramped but the result can still build to static files.
+
 ## Custom Capabilities
 
 Canvas metadata can carry domain-specific actions and promotion targets. With the CLI, pass repeated values while creating a canvas:
