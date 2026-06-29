@@ -129,6 +129,8 @@ Use the lightest surface that helps:
 - Use a local web app when the user needs filtering, drag/drop, forms, tabs, persisted controls, previews, or multi-step interaction.
 - Use existing project files only when the output is intended as source, documentation, test material, or other durable project state.
 
+When the Canvas MCP tools are available, use `canvas_export_html` to turn an active or archived canvas into a static `canvas.html` review surface for browser inspection. Treat this as a view of the working artifact, not as promotion into project memory, docs, dashboards, or source.
+
 ## Repo And Project Hygiene
 
 Do not assume repo-local storage is wanted.
@@ -181,7 +183,9 @@ When updating an existing canvas:
 2. Preserve user edits.
 3. Apply the smallest update that reflects the new instruction.
 4. Update `updated_at` and `last_updated_from_thread` when possible.
-5. Report what changed and where.
+5. Validate the canvas with `canvas_validate` when the MCP tool is available.
+6. Export or refresh the HTML review surface with `canvas_export_html` when browser inspection would help.
+7. Report what changed and where.
 
 Avoid rebuilding the canvas from scratch unless the user asks or the current structure no longer fits the workflow.
 

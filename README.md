@@ -35,11 +35,31 @@ Run full validation plus the installed personal plugin cache smoke:
 python scripts\validate.py --installed
 ```
 
+Run the full validation plus the five-scenario MCP/browser-surface suite:
+
+```powershell
+python scripts\validate.py --scenarios
+python scripts\validate.py --installed --scenarios
+```
+
 Run only the MCP transport/lifecycle smoke:
 
 ```powershell
 python scripts\smoke_mcp.py
 python scripts\smoke_mcp.py --installed
+```
+
+Run the scenario suite directly:
+
+```powershell
+python scripts\run_scenarios.py
+python scripts\run_scenarios.py --installed
+```
+
+The scenario suite writes a local browser report to:
+
+```text
+.canvas-test-output\report.html
 ```
 
 Run CLI locally:
@@ -82,7 +102,18 @@ The automated checks are layered:
 
 - Unit tests cover the registry, CLI, plugin config, MCP methods, error handling, and probes.
 - `scripts\smoke_mcp.py` starts the MCP server through the plugin `.mcp.json` command and uses Codex-compatible newline JSON-RPC over stdio.
-- `scripts\validate.py` runs compile checks, unit tests, source MCP smoke, and plugin manifest validation.
+- `scripts\run_scenarios.py` drives five end-to-end MCP scenarios and renders HTML surfaces for browser validation.
+- `scripts\validate.py` runs compile checks, unit tests, source MCP smoke, optional scenario validation, and plugin manifest validation.
 - `scripts\validate.py --installed` additionally verifies the latest installed `canvas@personal` plugin cache.
 
 Fresh Codex thread smoke tests are still useful after reinstalling a cachebusted plugin, but the source and installed MCP smoke scripts catch the transport and lifecycle failures locally before that step.
+
+## Browser Surfaces
+
+Canvas can export any active or archived canvas to a deterministic static HTML file:
+
+```powershell
+python scripts\canvas.py export-html <canvas-id>
+```
+
+The MCP equivalent is `canvas_export_html`. The HTML export is a review surface for the current working artifact; it does not promote canvas content into durable project state by itself.
