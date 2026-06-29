@@ -104,6 +104,8 @@ For each canvas, define:
 
 Prefer named actions over vague "update the canvas" behavior. The named actions do not need a formal API unless the canvas is implemented as an app, but they should be concrete enough that a later Codex turn can continue the workflow without reinterpreting the whole surface.
 
+When the MCP `canvas_init` tool is available, pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` during creation whenever the canvas has a clear workflow shape. Use the defaults only for generic canvases.
+
 When building an interactive HTML page or local app, make these capabilities visible through controls where useful: buttons, filters, status chips, checkboxes, tabs, or forms. When using Markdown only, document the available actions in `README.md`.
 
 ## Initial Triage

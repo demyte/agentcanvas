@@ -35,7 +35,7 @@ Run full validation plus the installed personal plugin cache smoke:
 python scripts\validate.py --installed
 ```
 
-Run the full validation plus the five-scenario MCP/browser-surface suite:
+Run the full validation plus the ten-scenario MCP/browser-surface suite:
 
 ```powershell
 python scripts\validate.py --scenarios
@@ -102,7 +102,7 @@ The automated checks are layered:
 
 - Unit tests cover the registry, CLI, plugin config, MCP methods, error handling, and probes.
 - `scripts\smoke_mcp.py` starts the MCP server through the plugin `.mcp.json` command and uses Codex-compatible newline JSON-RPC over stdio.
-- `scripts\run_scenarios.py` drives five end-to-end MCP scenarios and renders HTML surfaces for browser validation.
+- `scripts\run_scenarios.py` drives ten end-to-end MCP scenarios and renders HTML surfaces for browser validation.
 - `scripts\validate.py` runs compile checks, unit tests, source MCP smoke, optional scenario validation, and plugin manifest validation.
 - `scripts\validate.py --installed` additionally verifies the latest installed `canvas@personal` plugin cache.
 
@@ -117,3 +117,13 @@ python scripts\canvas.py export-html <canvas-id>
 ```
 
 The MCP equivalent is `canvas_export_html`. The HTML export is a review surface for the current working artifact; it does not promote canvas content into durable project state by itself.
+
+## Custom Capabilities
+
+Canvas metadata can carry domain-specific actions and promotion targets. With the CLI, pass repeated values while creating a canvas:
+
+```powershell
+python scripts\canvas.py init incident-board --scope project --human-action declare_severity --agent-action summarize_timeline --promotion-target post-incident-report
+```
+
+The MCP `canvas_init` tool accepts matching `human_actions`, `agent_actions`, and `promotion_targets` arrays.

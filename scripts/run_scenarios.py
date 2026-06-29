@@ -341,6 +341,361 @@ def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> t
     }
 
 
+def scenario_incident_command_center(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-incident-command-center"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "ops://payments-api/incident/2026-06-29",
+            "title": "Payments Incident Command Center",
+            "purpose": "Coordinate a live service incident without confusing working notes with the post-incident record.",
+            "human_actions": ["declare_severity", "assign_incident_commander", "approve_customer_update"],
+            "agent_actions": ["refresh_status", "summarize_timeline", "draft_customer_update"],
+            "promotion_targets": ["issue-comment", "post-incident-report"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "severity": "SEV2",
+                "incident_roles": {
+                    "commander": "unassigned",
+                    "communications": "support-lead",
+                    "scribe": "codex",
+                },
+                "timeline": [
+                    {"time": "10:04", "event": "Checkout latency breached threshold"},
+                    {"time": "10:12", "event": "Suspected upstream gateway degradation"},
+                    {"time": "10:19", "event": "Mitigation candidate identified"},
+                ],
+                "customer_update_status": "draft-needed",
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "issue-comment",
+            "reference": "incident-tracker://PAY-481#comment",
+            "note": "scenario-only incident status handoff",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Payments Incident Command Center", "SEV2", "declare_severity", "issue-comment"])
+    return request_id, {
+        "name": "Incident command center",
+        "id": canvas_id,
+        "passed": (
+            validation["valid"]
+            and created["human_actions"][0] == "declare_severity"
+            and promoted["promotions"][-1]["target"] == "issue-comment"
+        ),
+        "html_path": str(html_path),
+        "checks": ["custom actions", "incident timeline", "issue-comment promotion", "validate", "export_html"],
+    }
+
+
+def scenario_contract_negotiation(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-contract-negotiation-room"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "contracts://vendor-platform-renewal",
+            "title": "Vendor Contract Negotiation Room",
+            "purpose": "Track clause-level negotiation state before anything becomes an approved legal position.",
+            "human_actions": ["approve_clause_position", "request_legal_review", "mark_walkaway_term"],
+            "agent_actions": ["summarize_clause_risk", "compare_terms", "draft_counterposition"],
+            "promotion_targets": ["legal-brief", "final-report"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "clauses": [
+                    {"name": "Data processing", "risk": "medium", "position": "needs DPA attachment"},
+                    {"name": "Liability cap", "risk": "high", "position": "reject 1x fees cap"},
+                    {"name": "Renewal notice", "risk": "low", "position": "accept 60 days"},
+                ],
+                "walkaway_terms": ["Unlimited data reuse", "One-way indemnity"],
+                "open_questions": ["Does procurement require price hold language?"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "legal-brief",
+            "reference": "legal-review://vendor-platform-renewal/brief",
+            "note": "scenario-only brief reference",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Vendor Contract Negotiation Room", "Liability cap", "legal-brief", "walkaway"])
+    return request_id, {
+        "name": "Contract negotiation room",
+        "id": canvas_id,
+        "passed": (
+            validation["valid"]
+            and "legal-brief" in created["promotion_targets"]
+            and promoted["promotions"][-1]["target"] == "legal-brief"
+        ),
+        "html_path": str(html_path),
+        "checks": ["custom promotion target", "clause risk state", "legal-brief promotion", "validate", "export_html"],
+    }
+
+
+def scenario_data_migration_cutover(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-data-migration-cutover"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "repo",
+            "anchor": r"D:\Projects\data-platform",
+            "title": "Data Migration Cutover Board",
+            "purpose": "Coordinate a reversible data migration without storing cutover state in the repo.",
+            "human_actions": ["approve_cutover", "pause_migration", "trigger_rollback"],
+            "agent_actions": ["check_row_counts", "compare_watermarks", "summarize_cutover_readiness"],
+            "promotion_targets": ["repo-doc", "pull-request-comment", "rollback-runbook"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "phases": [
+                    {"name": "snapshot", "status": "complete"},
+                    {"name": "dual-write", "status": "monitoring"},
+                    {"name": "read-switch", "status": "blocked"},
+                ],
+                "gates": {"row_count_delta": "0.02%", "watermark_lag": "3m", "rollback_ready": True},
+                "rollback_plan": ["disable read switch", "replay queue", "restore old watermark"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "rollback-runbook",
+            "reference": "runbooks/data-migration-rollback.md",
+            "note": "scenario-only rollback handoff",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Data Migration Cutover Board", "dual-write", "rollback-runbook", "watermark_lag"])
+    return request_id, {
+        "name": "Data migration cutover",
+        "id": canvas_id,
+        "passed": (
+            validation["valid"]
+            and created["scope"] == "repo"
+            and promoted["promotions"][-1]["target"] == "rollback-runbook"
+        ),
+        "html_path": str(html_path),
+        "checks": ["repo anchor", "cutover gates", "custom rollback target", "validate", "export_html"],
+    }
+
+
+def scenario_hiring_review_panel(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-hiring-review-panel"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "user",
+            "anchor": "hiring://principal-engineer-panel",
+            "title": "Hiring Review Panel",
+            "purpose": "Compare fictional candidate feedback before a hiring packet is written.",
+            "human_actions": ["mark_conflict", "approve_shortlist", "request_followup_interview"],
+            "agent_actions": ["normalize_feedback", "summarize_signal", "draft_hiring_packet"],
+            "promotion_targets": ["hiring-packet", "final-report"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "candidates": [
+                    {"alias": "Candidate A", "system_design": 4, "execution": 5, "risk": "scope calibration"},
+                    {"alias": "Candidate B", "system_design": 5, "execution": 3, "risk": "delivery depth"},
+                    {"alias": "Candidate C", "system_design": 3, "execution": 4, "risk": "needs followup"},
+                ],
+                "panel_decision": "shortlist Candidate A and Candidate B",
+                "bias_checks": ["Use aliases only", "Separate evidence from recommendation"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "hiring-packet",
+            "reference": "hiring://principal-engineer-panel/packet-draft",
+            "note": "scenario-only packet draft",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Hiring Review Panel", "Candidate A", "hiring-packet", "bias_checks"])
+    return request_id, {
+        "name": "Hiring review panel",
+        "id": canvas_id,
+        "passed": (
+            validation["valid"]
+            and created["scope"] == "user"
+            and promoted["promotions"][-1]["target"] == "hiring-packet"
+        ),
+        "html_path": str(html_path),
+        "checks": ["user scope", "candidate comparison state", "custom hiring target", "validate", "export_html"],
+    }
+
+
+def scenario_editorial_calendar(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+    canvas_id = "scenario-editorial-calendar"
+    created = call_tool(
+        client,
+        "canvas_init",
+        {
+            "id": canvas_id,
+            "scope": "project",
+            "anchor": "content://developer-blog/q3",
+            "title": "Developer Blog Editorial Calendar",
+            "purpose": "Plan a content release train before publishing anything to the site catalog.",
+            "human_actions": ["approve_headline", "move_publish_date", "mark_asset_ready"],
+            "agent_actions": ["refresh_asset_status", "draft_social_copy", "validate_publish_checklist"],
+            "promotion_targets": ["static-site-catalog", "content-calendar"],
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    call_tool(
+        client,
+        "canvas_update_state",
+        {
+            "id": canvas_id,
+            "root": str(root),
+            "updates": {
+                "posts": [
+                    {"slug": "mcp-debugging", "stage": "outline", "owner": "engineering"},
+                    {"slug": "canvas-workflows", "stage": "draft", "owner": "product"},
+                    {"slug": "local-first-agents", "stage": "asset-review", "owner": "design"},
+                ],
+                "publish_window": "Q3",
+                "asset_checklist": ["hero image", "code snippets", "social cards"],
+            },
+        },
+        request_id,
+    )
+    request_id += 1
+    promoted = call_tool(
+        client,
+        "canvas_promote",
+        {
+            "id": canvas_id,
+            "target": "static-site-catalog",
+            "reference": "site-catalog://developer-blog/q3",
+            "note": "scenario-only catalog staging",
+            "root": str(root),
+        },
+        request_id,
+    )
+    request_id += 1
+    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    request_id += 1
+    html_path = Path(export["html_path"])
+    ensure_contains(html_path, ["Developer Blog Editorial Calendar", "canvas-workflows", "static-site-catalog"])
+    return request_id, {
+        "name": "Editorial calendar",
+        "id": canvas_id,
+        "passed": (
+            validation["valid"]
+            and "content-calendar" in created["promotion_targets"]
+            and promoted["promotions"][-1]["target"] == "static-site-catalog"
+        ),
+        "html_path": str(html_path),
+        "checks": ["project scope", "content calendar state", "catalog promotion", "validate", "export_html"],
+    }
+
+
 def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any]], resource_counts: dict[str, int]) -> Path:
     def report_link(path: str) -> str:
         relative = Path(path).resolve().relative_to(output.resolve()).as_posix()
@@ -450,6 +805,11 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
             scenario_thread_research,
             scenario_user_registry_archive,
             scenario_error_recovery,
+            scenario_incident_command_center,
+            scenario_contract_negotiation,
+            scenario_data_migration_cutover,
+            scenario_hiring_review_panel,
+            scenario_editorial_calendar,
         ]:
             request_id, result = scenario(client, canvas_root, request_id)
             scenarios.append(result)
