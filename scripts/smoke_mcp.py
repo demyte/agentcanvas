@@ -114,6 +114,7 @@ def assert_tool_names(tools: list[dict[str, Any]]) -> None:
         "canvas_validate",
         "canvas_archive",
         "canvas_promote",
+        "canvas_export_html",
     }
     missing = sorted(required - names)
     if missing:
@@ -171,11 +172,18 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
                     request_id=4,
                 )
             )
+            exported = tool_payload(
+                client.request(
+                    "tools/call",
+                    {"name": "canvas_export_html", "arguments": {"id": canvas_id, "root": tmp}},
+                    request_id=5,
+                )
+            )
             archived = tool_payload(
                 client.request(
                     "tools/call",
                     {"name": "canvas_archive", "arguments": {"id": canvas_id, "root": tmp}},
-                    request_id=5,
+                    request_id=6,
                 )
             )
             archived_validation = tool_payload(
@@ -185,7 +193,17 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
                         "name": "canvas_validate",
                         "arguments": {"id": canvas_id, "lifecycle": "archived", "root": tmp},
                     },
-                    request_id=6,
+                    request_id=7,
+                )
+            )
+            archived_export = tool_payload(
+                client.request(
+                    "tools/call",
+                    {
+                        "name": "canvas_export_html",
+                        "arguments": {"id": canvas_id, "lifecycle": "archived", "root": tmp},
+                    },
+                    request_id=8,
                 )
             )
 
@@ -195,6 +213,7 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
             "server": {"command": command, "cwd": str(cwd)},
             "tools": [tool["name"] for tool in listed["result"]["tools"]],
             "created": created["id"],
+            "exports": {"active": exported["valid"], "archived": archived_export["valid"]},
             "archived": archived["lifecycle"],
             "validations": {"active": active["valid"], "archived": archived_validation["valid"]},
         }

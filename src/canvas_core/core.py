@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+from html import escape
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -328,6 +329,38 @@ class CanvasRegistry:
             handle.write("\n")
         return metadata
 
+    def export_html(
+        self,
+        canvas_id: str,
+        *,
+        lifecycle: str | None = None,
+        output: str | Path | None = None,
+    ) -> dict[str, Any]:
+        metadata_file = self._metadata_path(canvas_id, lifecycle)
+        canvas_dir = metadata_file.parent
+        metadata = self._read_json(metadata_file)
+        state_file = canvas_dir / "state.json"
+        notes_file = canvas_dir / "notes.md"
+        state = self._read_json(state_file) if state_file.exists() else {}
+        notes = notes_file.read_text(encoding="utf-8") if notes_file.exists() else ""
+        validation = self.validate_canvas(metadata["id"], metadata["lifecycle"])
+
+        output_path = Path(output).expanduser() if output else canvas_dir / "canvas.html"
+        if not output_path.is_absolute():
+            output_path = canvas_dir / output_path
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            self._html_text(metadata, state, notes, validation),
+            encoding="utf-8",
+        )
+        return {
+            "id": metadata["id"],
+            "lifecycle": metadata["lifecycle"],
+            "html_path": str(output_path),
+            "valid": validation["valid"],
+            "warnings": validation["warnings"],
+        }
+
     def _metadata_path(self, canvas_id: str, lifecycle: str | None = None) -> Path:
         self.ensure_root()
         normalized_id = normalize_canvas_id(canvas_id)
@@ -366,3 +399,173 @@ class CanvasRegistry:
             + "\n"
         )
 
+    @staticmethod
+    def _html_text(
+        metadata: dict[str, Any],
+        state: dict[str, Any],
+        notes: str,
+        validation: dict[str, Any],
+    ) -> str:
+        title = escape(str(metadata.get("title") or metadata.get("id") or "Canvas"))
+        state_json = escape(json.dumps(state, indent=2, sort_keys=False))
+        metadata_json = escape(json.dumps(metadata, indent=2, sort_keys=False))
+        validation_json = escape(json.dumps(validation, indent=2, sort_keys=False))
+        notes_text = escape(notes)
+        promotions = metadata.get("promotions", [])
+        promotion_items = "\n".join(
+            "<li>"
+            f"<strong>{escape(str(item.get('target', '')))}</strong> "
+            f"<span>{escape(str(item.get('reference', '')))}</span>"
+            f"<small>{escape(str(item.get('note', '')))}</small>"
+            "</li>"
+            for item in promotions
+        ) or "<li>No promotions recorded.</li>"
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+  <style>
+    :root {{
+      color-scheme: light dark;
+      font-family: Inter, Segoe UI, system-ui, sans-serif;
+      background: #f6f7f9;
+      color: #17202a;
+    }}
+    body {{
+      margin: 0;
+      padding: 32px;
+    }}
+    main {{
+      max-width: 1120px;
+      margin: 0 auto;
+    }}
+    header {{
+      border-bottom: 1px solid #ccd2dc;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+    }}
+    h1 {{
+      font-size: 30px;
+      margin: 0 0 10px;
+      letter-spacing: 0;
+    }}
+    h2 {{
+      font-size: 17px;
+      margin: 0 0 12px;
+      letter-spacing: 0;
+    }}
+    .meta {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .chip {{
+      background: #e8edf4;
+      border: 1px solid #ccd2dc;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 13px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }}
+    section {{
+      background: #ffffff;
+      border: 1px solid #d7dde7;
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 0;
+    }}
+    pre {{
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #f0f3f7;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }}
+    ul {{
+      padding-left: 20px;
+    }}
+    li {{
+      margin-bottom: 8px;
+    }}
+    small {{
+      display: block;
+      color: #5d6877;
+      margin-top: 2px;
+    }}
+    @media (prefers-color-scheme: dark) {{
+      :root {{
+        background: #111418;
+        color: #ecf0f4;
+      }}
+      header {{
+        border-color: #303842;
+      }}
+      section {{
+        background: #191f26;
+        border-color: #303842;
+      }}
+      .chip {{
+        background: #232b35;
+        border-color: #303842;
+      }}
+      pre {{
+        background: #10151b;
+      }}
+      small {{
+        color: #aeb8c5;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>{title}</h1>
+      <div class="meta">
+        <span class="chip">id: {escape(str(metadata.get("id", "")))}</span>
+        <span class="chip">scope: {escape(str(metadata.get("scope", "")))}</span>
+        <span class="chip">lifecycle: {escape(str(metadata.get("lifecycle", "")))}</span>
+        <span class="chip">valid: {escape(str(validation.get("valid", False))).lower()}</span>
+      </div>
+    </header>
+    <div class="grid">
+      <section>
+        <h2>Purpose</h2>
+        <p>{escape(str(metadata.get("purpose", "")))}</p>
+        <h2>Anchor</h2>
+        <pre>{escape(str(metadata.get("anchor", "")))}</pre>
+      </section>
+      <section>
+        <h2>Promotions</h2>
+        <ul>{promotion_items}</ul>
+      </section>
+      <section>
+        <h2>State</h2>
+        <pre>{state_json}</pre>
+      </section>
+      <section>
+        <h2>Notes</h2>
+        <pre>{notes_text}</pre>
+      </section>
+      <section>
+        <h2>Validation</h2>
+        <pre>{validation_json}</pre>
+      </section>
+      <section>
+        <h2>Metadata</h2>
+        <pre>{metadata_json}</pre>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
+"""

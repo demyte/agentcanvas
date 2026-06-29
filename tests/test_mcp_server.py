@@ -62,6 +62,7 @@ class McpServerTests(unittest.TestCase):
         names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertIn("canvas_init", names)
         self.assertIn("canvas_validate", names)
+        self.assertIn("canvas_export_html", names)
         self.assertIsNone(tools["result"]["nextCursor"])
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -92,6 +93,21 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(validated["result"]["isError"])
             text = validated["result"]["content"][0]["text"]
             self.assertTrue(json.loads(text)["valid"])
+
+            exported = self.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 5,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_export_html",
+                        "arguments": {"id": "mcp-test", "root": tmp},
+                    },
+                }
+            )
+            self.assertFalse(exported["result"]["isError"])
+            html_path = Path(json.loads(exported["result"]["content"][0]["text"])["html_path"])
+            self.assertTrue(html_path.exists())
 
     def test_handle_request_ignores_json_rpc_error_messages(self) -> None:
         response = canvas_mcp_server.handle_request(

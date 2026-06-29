@@ -43,6 +43,14 @@ class CanvasCoreTests(unittest.TestCase):
             )
             self.assertEqual(promoted["promotions"][0]["target"], "final-report")
 
+            exported = registry.export_html("lifecycle-check")
+            html_path = Path(exported["html_path"])
+            self.assertTrue(html_path.exists())
+            html = html_path.read_text(encoding="utf-8")
+            self.assertIn("Lifecycle Check", html)
+            self.assertIn("final-report", html)
+            self.assertTrue(exported["valid"])
+
             archived = registry.archive_canvas("lifecycle-check")
             self.assertEqual(archived["lifecycle"], "archived")
             self.assertTrue(registry.validate_canvas("lifecycle-check", "archived")["valid"])

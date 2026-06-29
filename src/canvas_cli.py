@@ -45,6 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--reference", required=True)
     promote.add_argument("--note", default="")
 
+    export_html = sub.add_parser("export-html", help="Export a canvas to static HTML.")
+    export_html.add_argument("id")
+    export_html.add_argument("--lifecycle", choices=["active", "archived"])
+    export_html.add_argument("--output", default="")
+
     update_state = sub.add_parser("update-state", help="Shallow-merge JSON into state.json.")
     update_state.add_argument("id")
     update_state.add_argument("json")
@@ -79,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
             print_json(registry.archive_canvas(args.id))
         elif args.command == "promote":
             print_json(registry.promote_canvas(args.id, target=args.target, reference=args.reference, note=args.note))
+        elif args.command == "export-html":
+            print_json(registry.export_html(args.id, lifecycle=args.lifecycle, output=args.output or None))
         elif args.command == "update-state":
             print_json(registry.update_state(args.id, json.loads(args.json)))
         else:
@@ -91,4 +98,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

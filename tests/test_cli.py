@@ -41,6 +41,11 @@ class CanvasCliTests(unittest.TestCase):
             self.assertEqual(validate.returncode, 0, validate.stdout)
             self.assertTrue(json.loads(validate.stdout)["valid"])
 
+            export = self.run_cli("--root", tmp, "export-html", "cli-smoke")
+            self.assertEqual(export.returncode, 0, export.stdout)
+            html_path = Path(json.loads(export.stdout)["html_path"])
+            self.assertTrue(html_path.exists())
+
             archive = self.run_cli("--root", tmp, "archive", "cli-smoke")
             self.assertEqual(archive.returncode, 0, archive.stdout)
             self.assertEqual(json.loads(archive.stdout)["lifecycle"], "archived")
@@ -53,4 +58,3 @@ class CanvasCliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

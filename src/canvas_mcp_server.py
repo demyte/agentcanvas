@@ -121,6 +121,18 @@ TOOLS: dict[str, dict[str, Any]] = {
             ["id", "target", "reference"],
         ),
     },
+    "canvas_export_html": {
+        "description": "Export a canvas to a static HTML surface for browser inspection.",
+        "inputSchema": schema(
+            {
+                "id": {"type": "string"},
+                "lifecycle": {"type": "string", "enum": ["active", "archived"]},
+                "output": {"type": "string", "default": ""},
+                "root": {"type": "string", "default": ""},
+            },
+            ["id"],
+        ),
+    },
 }
 
 
@@ -170,6 +182,14 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
                 target=args["target"],
                 reference=args["reference"],
                 note=args.get("note", ""),
+            )
+        )
+    if name == "canvas_export_html":
+        return as_tool_result(
+            registry.export_html(
+                args["id"],
+                lifecycle=args.get("lifecycle"),
+                output=args.get("output") or None,
             )
         )
     return as_tool_result({"error": {"type": "UnknownTool", "message": f"Unknown tool: {name}"}}, True)
