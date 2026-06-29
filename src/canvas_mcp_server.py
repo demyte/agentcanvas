@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -9,6 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from canvas_core import CanvasError, CanvasRegistry  # noqa: E402
+
+
+STARTUP_PROBE = Path(tempfile.gettempdir()) / "canvas-mcp-startup.jsonl"
 
 
 def schema(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -267,7 +272,24 @@ def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
     stream.flush()
 
 
+def write_startup_probe() -> None:
+    entry = {
+        "event": "canvas_mcp_start",
+        "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+        "script": str(Path(__file__).resolve()),
+        "cwd": str(Path.cwd()),
+        "executable": sys.executable,
+        "argv": sys.argv,
+    }
+    try:
+        with STARTUP_PROBE.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
 def main() -> int:
+    write_startup_probe()
     input_stream = sys.stdin.buffer
     output_stream = sys.stdout.buffer
     while True:
@@ -281,4 +303,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

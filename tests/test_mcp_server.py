@@ -10,6 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER = ROOT / "src" / "canvas_mcp_server.py"
+sys.path.insert(0, str(ROOT / "src"))
+
+import canvas_mcp_server  # noqa: E402
 
 
 class McpServerTests(unittest.TestCase):
@@ -80,6 +83,20 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(validated["result"]["isError"])
             text = validated["result"]["content"][0]["text"]
             self.assertTrue(json.loads(text)["valid"])
+
+    def test_startup_probe_writes_process_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            original_probe = canvas_mcp_server.STARTUP_PROBE
+            canvas_mcp_server.STARTUP_PROBE = Path(tmp) / "startup.jsonl"
+            try:
+                canvas_mcp_server.write_startup_probe()
+                entry = json.loads(canvas_mcp_server.STARTUP_PROBE.read_text(encoding="utf-8"))
+            finally:
+                canvas_mcp_server.STARTUP_PROBE = original_probe
+
+        self.assertEqual(entry["event"], "canvas_mcp_start")
+        self.assertTrue(Path(entry["script"]).name.endswith("canvas_mcp_server.py"))
+        self.assertTrue(entry["executable"])
 
 
 if __name__ == "__main__":
