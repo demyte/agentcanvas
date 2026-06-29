@@ -49,11 +49,13 @@ class McpServerTests(unittest.TestCase):
     def test_initialize_tools_and_canvas_call(self) -> None:
         init = self.send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         self.assertEqual(init["result"]["serverInfo"]["name"], "canvas")
+        self.assertEqual(init["result"]["capabilities"]["tools"], {"listChanged": False})
 
         tools = self.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertIn("canvas_init", names)
         self.assertIn("canvas_validate", names)
+        self.assertIsNone(tools["result"]["nextCursor"])
 
         with tempfile.TemporaryDirectory() as tmp:
             created = self.send(
@@ -83,6 +85,16 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(validated["result"]["isError"])
             text = validated["result"]["content"][0]["text"]
             self.assertTrue(json.loads(text)["valid"])
+
+    def test_handle_request_ignores_json_rpc_error_messages(self) -> None:
+        response = canvas_mcp_server.handle_request(
+            {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}}
+        )
+        self.assertIsNone(response)
+
+    def test_ping_returns_empty_result(self) -> None:
+        response = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": 99, "method": "ping"})
+        self.assertEqual(response, {"jsonrpc": "2.0", "id": 99, "result": {}})
 
     def test_startup_probe_writes_process_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

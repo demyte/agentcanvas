@@ -217,17 +217,29 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
     request_id = message.get("id")
     params = message.get("params") or {}
 
+    if method is None:
+        write_probe(TRAFFIC_PROBE, {"event": "ignored_non_request", "message": message})
+        return None
+
     try:
         if method == "initialize":
             result = {
                 "protocolVersion": params.get("protocolVersion", "2024-11-05"),
-                "capabilities": {"tools": {}, "resources": {}},
+                "capabilities": {
+                    "tools": {"listChanged": False},
+                    "resources": {"listChanged": False},
+                },
                 "serverInfo": {"name": "canvas", "version": "0.1.0"},
             }
         elif method == "notifications/initialized":
             return None
+        elif method == "ping":
+            result = {}
         elif method == "tools/list":
-            result = {"tools": [{"name": name, **definition} for name, definition in TOOLS.items()]}
+            result = {
+                "tools": [{"name": name, **definition} for name, definition in TOOLS.items()],
+                "nextCursor": None,
+            }
         elif method == "tools/call":
             result = call_tool(params.get("name", ""), params.get("arguments") or {})
         elif method == "resources/list":
