@@ -70,15 +70,18 @@ python scripts\canvas.py --help
 
 ## Storage
 
-By default, Canvas stores user-level canvases under:
+Path ownership is split deliberately:
+
+- The skill owns the policy: canvases are user-level working artifacts, outside transient Codex session folders and outside repo roots unless explicitly requested.
+- The MCP owns concrete paths: default root, exact layout, collision rules, lifecycle transitions, migrations, and `canvas.json` placement.
+
+The current MCP default root is:
 
 ```text
 C:\Users\james\.agents\canvas\
-  active\<canvas-id>\
-  archived\<canvas-id>\
 ```
 
-Override this with `CANVAS_ROOT` or the CLI/MCP `root` argument when a test or workspace needs a different root.
+Override this with `CANVAS_ROOT` or the CLI/MCP `root` argument when a test or workspace needs a different root. Callers should treat the returned `storage_path`, `html_path`, and `data_path` values as authoritative rather than assuming the layout.
 
 ## Codex Connection
 

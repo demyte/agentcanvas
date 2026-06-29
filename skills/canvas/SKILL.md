@@ -28,26 +28,16 @@ Default frame: `Canvas = a working set for an active line of thought.`
 
 ## Storage
 
-Do not store durable canvases in transient dated Codex session folders such as:
+Do not choose or construct canvas storage paths in the skill. The MCP owns concrete path knowledge: default root, exact on-disk layout, lifecycle placement, collision handling, migrations, and where `canvas.json` lives.
 
-```text
-Documents\Codex\YYYY-MM-DD\<session-slug>\work
-```
-
-Default storage:
-
-```text
-C:\Users\james\.agents\canvas\
-```
-
-Use another root only when the user or workspace instructions explicitly configure one. Let the MCP decide the exact on-disk layout and use the returned `storage_path` as the canvas location.
+Policy only: canvases belong in user-level external storage, not transient dated Codex session folders and not repo/project folders unless the user explicitly asks. Use the `storage_path` returned by `canvas_init` or `canvas_get` as authoritative.
 
 Keep the logical anchor separate from storage:
 
 ```text
 scope: repo
 anchor: D:\xpna\main
-storage: returned by canvas_init or canvas_get
+storage_path: returned by the MCP
 ```
 
 Repo/project folders are usually anchors, not storage targets. Do not create committable repo-local canvas files unless the user asks or the repo has a clearly ignored local-agent convention.
