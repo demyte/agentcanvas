@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -18,6 +19,8 @@ TRAFFIC_PROBE = Path(tempfile.gettempdir()) / "canvas-mcp-traffic.jsonl"
 
 
 def write_probe(path: Path, entry: dict[str, Any]) -> None:
+    if os.environ.get("CANVAS_MCP_PROBE") != "1":
+        return
     payload = {
         "timestamp": dt.datetime.now(dt.UTC).isoformat(),
         **entry,

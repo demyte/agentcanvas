@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -95,12 +96,18 @@ class McpServerTests(unittest.TestCase):
     def test_startup_probe_writes_process_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             original_probe = canvas_mcp_server.STARTUP_PROBE
+            original_env = os.environ.get("CANVAS_MCP_PROBE")
             canvas_mcp_server.STARTUP_PROBE = Path(tmp) / "startup.jsonl"
             try:
+                os.environ["CANVAS_MCP_PROBE"] = "1"
                 canvas_mcp_server.write_startup_probe()
                 entry = json.loads(canvas_mcp_server.STARTUP_PROBE.read_text(encoding="utf-8"))
             finally:
                 canvas_mcp_server.STARTUP_PROBE = original_probe
+                if original_env is None:
+                    os.environ.pop("CANVAS_MCP_PROBE", None)
+                else:
+                    os.environ["CANVAS_MCP_PROBE"] = original_env
 
         self.assertEqual(entry["event"], "canvas_mcp_start")
         self.assertTrue(Path(entry["script"]).name.endswith("canvas_mcp_server.py"))
@@ -108,13 +115,33 @@ class McpServerTests(unittest.TestCase):
 
     def test_probe_writer_records_json_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
+            original_env = os.environ.get("CANVAS_MCP_PROBE")
             path = Path(tmp) / "traffic.jsonl"
-            canvas_mcp_server.write_probe(path, {"event": "response", "message": {"id": 1}})
-            entry = json.loads(path.read_text(encoding="utf-8"))
+            try:
+                os.environ["CANVAS_MCP_PROBE"] = "1"
+                canvas_mcp_server.write_probe(path, {"event": "response", "message": {"id": 1}})
+                entry = json.loads(path.read_text(encoding="utf-8"))
+            finally:
+                if original_env is None:
+                    os.environ.pop("CANVAS_MCP_PROBE", None)
+                else:
+                    os.environ["CANVAS_MCP_PROBE"] = original_env
 
         self.assertEqual(entry["event"], "response")
         self.assertEqual(entry["message"], {"id": 1})
         self.assertIn("timestamp", entry)
+
+    def test_probe_writer_is_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            original_env = os.environ.pop("CANVAS_MCP_PROBE", None)
+            path = Path(tmp) / "traffic.jsonl"
+            try:
+                canvas_mcp_server.write_probe(path, {"event": "response"})
+            finally:
+                if original_env is not None:
+                    os.environ["CANVAS_MCP_PROBE"] = original_env
+
+        self.assertFalse(path.exists())
 
 
 if __name__ == "__main__":
