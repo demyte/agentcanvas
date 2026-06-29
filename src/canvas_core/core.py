@@ -467,6 +467,7 @@ class CanvasRegistry:
       border-radius: 6px;
       padding: 5px 8px;
       font-size: 13px;
+      overflow-wrap: anywhere;
     }}
     .grid {{
       display: grid;

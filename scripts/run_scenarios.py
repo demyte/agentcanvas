@@ -370,7 +370,7 @@ def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any
     th {{ background: #eef2f7; font-size: 13px; }}
     code {{ background: #eef2f7; padding: 2px 4px; border-radius: 4px; }}
     .summary {{ display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }}
-    .chip {{ border: 1px solid #cfd6e2; background: white; border-radius: 6px; padding: 8px 10px; }}
+    .chip {{ border: 1px solid #cfd6e2; background: white; border-radius: 6px; padding: 8px 10px; overflow-wrap: anywhere; }}
   </style>
 </head>
 <body>
@@ -400,10 +400,13 @@ def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any
 
 
 def run(plugin_root: Path, output: Path) -> dict[str, Any]:
-    if output.exists():
-        shutil.rmtree(output)
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, exist_ok=True)
     canvas_root = output / "canvases"
+    if canvas_root.exists():
+        shutil.rmtree(canvas_root)
+    for artifact in [output / "report.html", output / "summary.json"]:
+        if artifact.exists():
+            artifact.unlink()
     command, cwd = server_config(plugin_root)
     original_canvas_root = os.environ.get("CANVAS_ROOT")
     os.environ["CANVAS_ROOT"] = str(canvas_root)
