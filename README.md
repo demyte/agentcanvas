@@ -20,12 +20,17 @@ tests/                     # Automated tests
 Run tests:
 
 ```powershell
-python -m pytest
+python -m unittest discover -s tests
+```
+
+Run full validation:
+
+```powershell
+python scripts\validate.py
 ```
 
 Run CLI locally:
 
 ```powershell
-python -m canvas_cli --help
+python scripts\canvas.py --help
 ```
-
