@@ -1,0 +1,27 @@
+{
+  "name": "canvas",
+  "version": "0.1.0",
+  "description": "Semi-persistent canvas workspaces for Codex.",
+  "author": {
+    "name": "James Summerton"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Canvas",
+    "shortDescription": "Create and manage Codex canvas workspaces.",
+    "longDescription": "Canvas adds semi-persistent working artifacts for Codex: more durable than scratch files, less authoritative than project memory, and promotable into durable outputs only when requested.",
+    "developerName": "James Summerton",
+    "category": "Productivity",
+    "capabilities": [
+      "MCP",
+      "Filesystem",
+      "Workflow"
+    ],
+    "defaultPrompt": [
+      "Create a canvas for this task.",
+      "List my active canvases.",
+      "Validate this canvas."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}
