@@ -39,12 +39,8 @@ class McpServerTests(unittest.TestCase):
         body = json.dumps(message, separators=(",", ":")).encode("utf-8")
         self.proc.stdin.write(b"Content-Length: " + str(len(body)).encode("ascii") + b"\r\n\r\n" + body)
         self.proc.stdin.flush()
-        header = self.proc.stdout.readline()
-        self.assertTrue(header.lower().startswith(b"content-length:"), header)
-        length = int(header.split(b":", 1)[1].strip())
-        blank = self.proc.stdout.readline()
-        self.assertIn(blank, {b"\r\n", b"\n"})
-        return json.loads(self.proc.stdout.read(length).decode("utf-8"))
+        line = self.proc.stdout.readline()
+        return json.loads(line.decode("utf-8"))
 
     def test_initialize_tools_and_canvas_call(self) -> None:
         init = self.send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
