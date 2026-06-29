@@ -14,6 +14,19 @@ from canvas_core import CanvasError, CanvasRegistry  # noqa: E402
 
 
 STARTUP_PROBE = Path(tempfile.gettempdir()) / "canvas-mcp-startup.jsonl"
+TRAFFIC_PROBE = Path(tempfile.gettempdir()) / "canvas-mcp-traffic.jsonl"
+
+
+def write_probe(path: Path, entry: dict[str, Any]) -> None:
+    payload = {
+        "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+        **entry,
+    }
+    try:
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, sort_keys=True, default=str) + "\n")
+    except OSError:
+        pass
 
 
 def schema(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -258,14 +271,19 @@ def read_message(stream: BinaryIO) -> dict[str, Any] | None:
         body = stream.read(length)
         if not body:
             return None
-        return json.loads(body.decode("utf-8"))
+        message = json.loads(body.decode("utf-8"))
+        write_probe(TRAFFIC_PROBE, {"event": "request", "message": message})
+        return message
     stripped = first.strip()
     if not stripped:
         return read_message(stream)
-    return json.loads(stripped.decode("utf-8"))
+    message = json.loads(stripped.decode("utf-8"))
+    write_probe(TRAFFIC_PROBE, {"event": "request", "message": message})
+    return message
 
 
 def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
+    write_probe(TRAFFIC_PROBE, {"event": "response", "message": message})
     body = json.dumps(message, separators=(",", ":")).encode("utf-8")
     stream.write(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii"))
     stream.write(body)
@@ -273,19 +291,13 @@ def write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
 
 
 def write_startup_probe() -> None:
-    entry = {
+    write_probe(STARTUP_PROBE, {
         "event": "canvas_mcp_start",
-        "timestamp": dt.datetime.now(dt.UTC).isoformat(),
         "script": str(Path(__file__).resolve()),
         "cwd": str(Path.cwd()),
         "executable": sys.executable,
         "argv": sys.argv,
-    }
-    try:
-        with STARTUP_PROBE.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, sort_keys=True) + "\n")
-    except OSError:
-        pass
+    })
 
 
 def main() -> int:

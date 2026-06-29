@@ -98,6 +98,16 @@ class McpServerTests(unittest.TestCase):
         self.assertTrue(Path(entry["script"]).name.endswith("canvas_mcp_server.py"))
         self.assertTrue(entry["executable"])
 
+    def test_probe_writer_records_json_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "traffic.jsonl"
+            canvas_mcp_server.write_probe(path, {"event": "response", "message": {"id": 1}})
+            entry = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(entry["event"], "response")
+        self.assertEqual(entry["message"], {"id": 1})
+        self.assertIn("timestamp", entry)
+
 
 if __name__ == "__main__":
     unittest.main()
