@@ -29,6 +29,14 @@ class PluginConfigTests(unittest.TestCase):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["mcpServers"], "./.mcp.json")
 
+    def test_skill_documents_mcp_fallback_and_blank_stub_contract(self) -> None:
+        skill = (ROOT / "skills" / "canvas" / "SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("If the MCP tools are not exposed in the current thread", skill)
+        self.assertIn("Use the installed Canvas CLI only as a compatibility path", skill)
+        self.assertIn("The exported HTML template intentionally has no body", skill)
+        self.assertIn("Do not \"fix\" a blank starter export", skill)
+
     def test_smoke_selects_exact_installed_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cache_root = Path(tmp)

@@ -159,6 +159,8 @@ templates/canvas-viewer.html
 
 Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not a designed review surface or a promotion into durable project state.
 
+Seeing a blank page after `canvas_export_html` is expected. Build a body only when you explicitly want a canvas-specific browser surface.
+
 For richer local surfaces, prefer the lightest option that works:
 
 ```text
@@ -270,6 +272,8 @@ The scenario suite writes a local report to:
 ```
 
 The validation stack checks Python compilation, unit tests, MCP transport behavior, source and installed plugin startup, the plugin manifest, and fifteen end-to-end scenarios.
+
+If a Codex thread cannot see the Canvas MCP tools, use the bundled CLI as a compatibility path for the same operations and report that MCP tools were not exposed in that thread. Do not hand-create `canvas.json` or invent storage paths.
 
 ## Repository Layout
 

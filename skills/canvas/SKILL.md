@@ -9,7 +9,9 @@ Use this skill to create and maintain semi-persistent Codex work surfaces.
 
 A canvas is a working artifact for an active investigation, plan, review, dashboard, or decision workflow. It is not scratch, and it is not durable project truth until explicitly promoted.
 
-Assume the Canvas MCP tools are available. Defer canvas creation, reads, updates, validation, archival, promotion records, and HTML export to those tools. Use direct filesystem reads or edits only to inspect returned files, preserve user edits, or recover when the MCP tool call is unavailable or fails.
+Assume the Canvas MCP tools are available. Defer canvas creation, reads, updates, validation, archival, promotion records, and HTML export to those tools.
+
+If the MCP tools are not exposed in the current thread, do not hand-create canvas metadata or invent the storage layout. Use the installed Canvas CLI only as a compatibility path for the same operations, and say clearly that MCP tools were not exposed. Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or narrowly repairing a failed operation.
 
 ## Model
 
@@ -116,7 +118,7 @@ Next.js + Tailwind + shadcn/ui
   Only when server behavior, routing, API routes, auth, or similar features are genuinely needed.
 ```
 
-If the `frontend-design` skill is installed and the canvas includes a new or materially revised browser surface, use that skill before designing or editing the UI. If it is not installed or cannot be read, continue with this surface guidance and note the fallback.
+If the `frontend-design` skill is installed and the user explicitly asks to build or materially revise a browser UI, use that skill before designing or editing the UI. Do not treat normal `canvas_export_html` output as a design task by itself.
 
 Do not choose Next.js by default for local canvas artifacts.
 
@@ -124,7 +126,7 @@ Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Ma
 
 Static HTML surfaces must be real HTML pages on disk. Start from the checked-in blank template and place local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
 
-Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The exported HTML template intentionally has no body; populate the body only when building a canvas-specific surface. The export is a working artifact, not a durable promotion.
+Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The exported HTML template intentionally has no body and will render as a blank browser page until a user explicitly asks for a custom surface. Do not "fix" a blank starter export by adding a body, dashboard, or generated UI. Populate the body only when the user explicitly asks to build a canvas-specific surface. The export is a working artifact, not a durable promotion.
 
 ## Promotion
 
@@ -162,6 +164,14 @@ When updating an existing canvas:
 7. Report changed files, storage path, promotion status, and how to continue.
 
 Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.
+
+## Drift Guards
+
+- A blank `canvas.html` from `canvas_export_html` is expected for the default starter template.
+- Do not create a user-facing dashboard, app, or custom HTML body unless the user asks for that surface explicitly.
+- Do not copy bespoke output files from a Codex thread into canvas storage unless the user asks to replace or customize the canvas surface.
+- If the user reacts to a blank starter page ambiguously, clarify that the blank page is expected before changing it.
+- Keep promotion records separate from presentation changes; a rendered local surface is still not promotion.
 
 ## Archival
 
