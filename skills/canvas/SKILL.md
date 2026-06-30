@@ -11,7 +11,7 @@ A canvas is a working artifact for an active investigation, plan, review, dashbo
 
 ## CLI Contract
 
-Use the bundled Canvas CLI for all canvas operations. Do not use MCP tools for Canvas.
+Use the bundled Canvas CLI for all canvas operations.
 
 Resolve the CLI wrapper relative to this `SKILL.md`:
 

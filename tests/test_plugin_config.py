@@ -19,11 +19,9 @@ import smoke_cli  # noqa: E402
 
 
 class PluginConfigTests(unittest.TestCase):
-    def test_plugin_manifest_uses_bundled_cli_not_mcp(self) -> None:
+    def test_plugin_manifest_uses_bundled_cli(self) -> None:
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
-        self.assertNotIn("mcpServers", manifest)
-        self.assertNotIn("MCP", manifest["interface"]["capabilities"])
         self.assertTrue((ROOT / "scripts" / "canvas.py").exists())
         self.assertTrue((ROOT / "src" / "canvas_cli.py").exists())
 
@@ -36,7 +34,6 @@ class PluginConfigTests(unittest.TestCase):
         self.assertIn('init -id "review-board" -scope repo', skill)
         self.assertIn("update-state -id", skill)
         self.assertIn("-merge-file", skill)
-        self.assertIn("Do not use MCP tools for Canvas", skill)
         self.assertNotIn("tool canvas_init", skill)
         self.assertNotIn("<json-object>", skill)
         self.assertIn("The shared exported template intentionally has no body", skill)
