@@ -17,12 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / ".canvas-test-output"
 
 
-def call_tool(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> Any:
-    return client.tool(name, arguments)
+def call_operation(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> Any:
+    return client.operation(name, arguments)
 
 
-def call_tool_error(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
-    result = client.tool_raw(name, arguments)
+def call_operation_error(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
+    result = client.operation_raw(name, arguments)
     if result["returncode"] == 0:
         raise SmokeFailure(f"Expected {name} to fail, got success: {result['data']}")
     return result["data"]
@@ -40,9 +40,9 @@ def ensure_contains(path: Path, expected: list[str]) -> None:
 
 def scenario_repo_review(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-repo-architecture-review"
-    init = call_tool(
+    init = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "repo",
@@ -54,9 +54,9 @@ def scenario_repo_review(client: CliClient, root: Path, request_id: int) -> tupl
         request_id,
     )
     request_id += 1
-    state = call_tool(
+    state = call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -72,11 +72,11 @@ def scenario_repo_review(client: CliClient, root: Path, request_id: int) -> tupl
         request_id,
     )
     request_id += 1
-    fetched = call_tool(client, "canvas_get", {"id": canvas_id, "root": str(root)}, request_id)
+    fetched = call_operation(client, "get", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Canvas Repo Architecture Review", "Repo is anchor, not storage", '"valid": true'])
@@ -93,9 +93,9 @@ def scenario_repo_review(client: CliClient, root: Path, request_id: int) -> tupl
 
 def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-summerton-dashboard-promotion"
-    call_tool(
+    call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -107,9 +107,9 @@ def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -124,9 +124,9 @@ def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "project-dashboard",
@@ -137,9 +137,9 @@ def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Summerton Dashboard Promotion Candidate", "project-dashboard", "scenario-only"])
@@ -154,9 +154,9 @@ def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -
 
 def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-thread-research-brief"
-    call_tool(
+    call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "thread",
@@ -169,9 +169,9 @@ def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> 
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -186,9 +186,9 @@ def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> 
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "final-report",
@@ -199,23 +199,23 @@ def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> 
         request_id,
     )
     request_id += 1
-    associated = call_tool(
+    associated = call_operation(
         client,
-        "canvas_associate_thread",
+        "associate-thread",
         {"id": canvas_id, "threadId": "thread-scenario-followup", "root": str(root)},
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    thread_list = call_tool(
+    thread_list = call_operation(
         client,
-        "canvas_list",
+        "list",
         {"threadId": "thread-scenario-followup", "root": str(root)},
         request_id,
     )
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Thread Research Brief", "final-report", "cli smoke"])
@@ -230,9 +230,9 @@ def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> 
 
 def scenario_user_registry_archive(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-user-registry-cleanup"
-    call_tool(
+    call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "user",
@@ -244,9 +244,9 @@ def scenario_user_registry_archive(client: CliClient, root: Path, request_id: in
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -258,22 +258,22 @@ def scenario_user_registry_archive(client: CliClient, root: Path, request_id: in
         request_id,
     )
     request_id += 1
-    active_list = call_tool(client, "canvas_list", {"lifecycle": "active", "root": str(root)}, request_id)
+    active_list = call_operation(client, "list", {"lifecycle": "active", "root": str(root)}, request_id)
     request_id += 1
-    archived = call_tool(client, "canvas_archive", {"id": canvas_id, "root": str(root)}, request_id)
+    archived = call_operation(client, "archive", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    archived_validation = call_tool(
+    archived_validation = call_operation(
         client,
-        "canvas_validate",
+        "validate",
         {"id": canvas_id, "lifecycle": "archived", "root": str(root)},
         request_id,
     )
     request_id += 1
-    archived_list = call_tool(client, "canvas_list", {"lifecycle": "archived", "root": str(root)}, request_id)
+    archived_list = call_operation(client, "list", {"lifecycle": "archived", "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(
+    export = call_operation(
         client,
-        "canvas_export_html",
+        "export-html",
         {"id": canvas_id, "lifecycle": "archived", "root": str(root)},
         request_id,
     )
@@ -296,9 +296,9 @@ def scenario_user_registry_archive(client: CliClient, root: Path, request_id: in
 
 def scenario_error_recovery(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-error-recovery"
-    call_tool(
+    call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -310,16 +310,16 @@ def scenario_error_recovery(client: CliClient, root: Path, request_id: int) -> t
         request_id,
     )
     request_id += 1
-    duplicate = call_tool_error(
+    duplicate = call_operation_error(
         client,
-        "canvas_init",
+        "init",
         {"id": canvas_id, "scope": "project", "root": str(root)},
         request_id,
     )
     request_id += 1
-    bad_promotion = call_tool_error(
+    bad_promotion = call_operation_error(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "unsupported-target",
@@ -329,9 +329,9 @@ def scenario_error_recovery(client: CliClient, root: Path, request_id: int) -> t
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Error Recovery", '"valid": true'])
@@ -350,9 +350,9 @@ def scenario_error_recovery(client: CliClient, root: Path, request_id: int) -> t
 
 def scenario_incident_command_center(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-incident-command-center"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -367,9 +367,9 @@ def scenario_incident_command_center(client: CliClient, root: Path, request_id: 
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -391,9 +391,9 @@ def scenario_incident_command_center(client: CliClient, root: Path, request_id: 
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "issue-comment",
@@ -404,9 +404,9 @@ def scenario_incident_command_center(client: CliClient, root: Path, request_id: 
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Payments Incident Command Center", "SEV2", "declare_severity", "issue-comment"])
@@ -425,9 +425,9 @@ def scenario_incident_command_center(client: CliClient, root: Path, request_id: 
 
 def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-contract-negotiation-room"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -442,9 +442,9 @@ def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -461,9 +461,9 @@ def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "legal-brief",
@@ -474,9 +474,9 @@ def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Vendor Contract Negotiation Room", "Liability cap", "legal-brief", "walkaway"])
@@ -495,9 +495,9 @@ def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int
 
 def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-data-migration-cutover"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "repo",
@@ -512,9 +512,9 @@ def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -531,9 +531,9 @@ def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "rollback-runbook",
@@ -544,9 +544,9 @@ def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Data Migration Cutover Board", "dual-write", "rollback-runbook", "watermark_lag"])
@@ -565,9 +565,9 @@ def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: i
 
 def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-hiring-review-panel"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "user",
@@ -582,9 +582,9 @@ def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int)
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -601,9 +601,9 @@ def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int)
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "hiring-packet",
@@ -614,9 +614,9 @@ def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int)
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Hiring Review Panel", "Candidate A", "hiring-packet", "bias_checks"])
@@ -635,9 +635,9 @@ def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int)
 
 def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-editorial-calendar"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -652,9 +652,9 @@ def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -671,9 +671,9 @@ def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "static-site-catalog",
@@ -684,9 +684,9 @@ def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Developer Blog Editorial Calendar", "canvas-workflows", "static-site-catalog"])
@@ -705,9 +705,9 @@ def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) 
 
 def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-food-service-prep"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -722,9 +722,9 @@ def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -740,9 +740,9 @@ def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "service-run-sheet",
@@ -753,9 +753,9 @@ def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Saturday Service Prep Board", "miso mushroom bowls", "service-run-sheet"])
@@ -770,9 +770,9 @@ def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -
 
 def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-film-shoot-day"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -787,9 +787,9 @@ def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> t
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -806,9 +806,9 @@ def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> t
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "call-sheet",
@@ -819,9 +819,9 @@ def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> t
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Short Film Shoot Day Board", "weather hold", "call-sheet"])
@@ -836,9 +836,9 @@ def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> t
 
 def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-lab-specimen-chain"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -853,9 +853,9 @@ def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -872,9 +872,9 @@ def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "lab-register",
@@ -885,9 +885,9 @@ def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) 
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Field Specimen Chain Board", "FS-17-002", "lab-register"])
@@ -902,9 +902,9 @@ def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) 
 
 def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-emergency-supply-cache"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "user",
@@ -919,9 +919,9 @@ def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -938,9 +938,9 @@ def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "purchase-list",
@@ -951,9 +951,9 @@ def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: i
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Storm Season Supply Cache", "water containers", "purchase-list"])
@@ -968,9 +968,9 @@ def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: i
 
 def scenario_game_balance_lab(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-game-balance-lab"
-    created = call_tool(
+    created = call_operation(
         client,
-        "canvas_init",
+        "init",
         {
             "id": canvas_id,
             "scope": "project",
@@ -985,9 +985,9 @@ def scenario_game_balance_lab(client: CliClient, root: Path, request_id: int) ->
         request_id,
     )
     request_id += 1
-    call_tool(
+    call_operation(
         client,
-        "canvas_update_state",
+        "update-state",
         {
             "id": canvas_id,
             "root": str(root),
@@ -1004,9 +1004,9 @@ def scenario_game_balance_lab(client: CliClient, root: Path, request_id: int) ->
         request_id,
     )
     request_id += 1
-    promoted = call_tool(
+    promoted = call_operation(
         client,
-        "canvas_promote",
+        "promote",
         {
             "id": canvas_id,
             "target": "playtest-report",
@@ -1017,9 +1017,9 @@ def scenario_game_balance_lab(client: CliClient, root: Path, request_id: int) ->
         request_id,
     )
     request_id += 1
-    validation = call_tool(client, "canvas_validate", {"id": canvas_id, "root": str(root)}, request_id)
+    validation = call_operation(client, "validate", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
-    export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
+    export = call_operation(client, "export-html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
     ensure_contains(html_path, ["Deckbuilder Balance Lab", "Spark Engine", "playtest-report"])
@@ -1108,20 +1108,20 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
     client = CliClient(plugin_root)
     try:
         required = {
-            "canvas_init",
-            "canvas_list",
-            "canvas_get",
-            "canvas_update_state",
-            "canvas_validate",
-            "canvas_archive",
-            "canvas_associate_thread",
-            "canvas_promote",
-            "canvas_export_html",
+            "init",
+            "list",
+            "get",
+            "update-state",
+            "validate",
+            "archive",
+            "associate-thread",
+            "promote",
+            "export-html",
         }
         names = set(required)
         missing = sorted(required - names)
         if missing:
-            raise SmokeFailure(f"Missing scenario tools: {missing}")
+            raise SmokeFailure(f"Missing scenario operations: {missing}")
 
         request_id = 3
         scenarios: list[dict[str, Any]] = []
@@ -1145,8 +1145,8 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
             request_id, result = scenario(client, canvas_root, request_id)
             scenarios.append(result)
 
-        active_count = len(client.tool("canvas_list", {"lifecycle": "active", "root": str(canvas_root)}))
-        archived_count = len(client.tool("canvas_list", {"lifecycle": "archived", "root": str(canvas_root)}))
+        active_count = len(client.operation("list", {"lifecycle": "active", "root": str(canvas_root)}))
+        archived_count = len(client.operation("list", {"lifecycle": "archived", "root": str(canvas_root)}))
     finally:
         if original_canvas_root is None:
             os.environ.pop("CANVAS_ROOT", None)
@@ -1158,7 +1158,7 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
         "ok": all(item["passed"] for item in scenarios),
         "plugin_root": str(plugin_root),
         "cli": [str(client.script)],
-        "tools": sorted(names),
+        "operations": sorted(names),
         "canvas_root": str(canvas_root),
         "report": str(report),
         "report_uri": report.as_uri(),

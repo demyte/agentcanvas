@@ -16,31 +16,28 @@ Use the bundled Canvas CLI for all canvas operations. Do not use MCP tools for C
 Resolve the CLI wrapper relative to this `SKILL.md`:
 
 ```bash
-python ../../scripts/canvas.py tool <operation> '<json-object>'
+python ../../scripts/canvas.py <command> <arguments>
 ```
 
 If that relative path cannot be resolved from the installed skill location, locate the installed `canvas` plugin root and run its `scripts/canvas.py`. Assume `python` is on the path.
 
-Supported operation names:
-
-- `canvas_init`
-- `canvas_list`
-- `canvas_get`
-- `canvas_update_state`
-- `canvas_validate`
-- `canvas_archive`
-- `canvas_associate_thread`
-- `canvas_promote`
-- `canvas_export_html`
-
-Use JSON payloads with the same field names:
+Use `--help`, `-h`, or `-?` for the full command reference:
 
 ```bash
-python ../../scripts/canvas.py tool canvas_init '{"id":"review-board","scope":"repo","anchor":"D:\\Projects\\repo","purpose":"Track review work"}'
-python ../../scripts/canvas.py tool canvas_update_state '{"id":"review-board","updates":{"status":"reviewing"}}'
-python ../../scripts/canvas.py tool canvas_validate '{"id":"review-board"}'
-python ../../scripts/canvas.py tool canvas_export_html '{"id":"review-board"}'
+python ../../scripts/canvas.py -?
+python ../../scripts/canvas.py init -?
 ```
+
+Use CLI verbs and arguments, not JSON payloads:
+
+```bash
+python ../../scripts/canvas.py init -id "review-board" -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
+python ../../scripts/canvas.py update-state -id "review-board" -set status=reviewing
+python ../../scripts/canvas.py validate -id "review-board"
+python ../../scripts/canvas.py export-html -id "review-board"
+```
+
+For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>` rather than putting raw JSON on the command line.
 
 Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout. The CLI owns default storage, exact paths, collision handling, validation, archive movement, and export sidecars. Use returned `storage_path`, `html_path`, and `data_path` as authoritative.
 
@@ -70,7 +67,7 @@ Keep the logical anchor separate from storage:
 ```text
 scope: repo
 anchor: D:\Projects\repo
-storage_path: returned by canvas_init or canvas_get
+storage_path: returned by `init` or `get`
 ```
 
 ## Scope
@@ -98,7 +95,7 @@ Before creating a canvas, determine:
 
 If intent is clear, proceed without asking. Ask only when the wrong anchor or storage choice would create meaningful cleanup or confusion.
 
-Create with `canvas_init`. Pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` for shaped workflows. Use defaults only for generic canvases. For thread-scoped canvases, pass known thread identifiers as `associatedThreads`; use `canvas_associate_thread` to connect an existing canvas to another thread.
+Create with `init`. Pass domain-specific `-human-action`, `-agent-action`, and `-promotion-target` flags for shaped workflows. Use defaults only for generic canvases. For thread-scoped canvases, pass known thread identifiers with `-associated-thread`; use `associate-thread` to connect an existing canvas to another thread.
 
 ## Surfaces
 
@@ -125,7 +122,7 @@ If the `frontend-design` skill is installed and the canvas needs a new or materi
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
-Static HTML surfaces must be real HTML pages on disk. Start with `canvas_export_html`, which creates or refreshes the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
+Static HTML surfaces must be real HTML pages on disk. Start with `export-html`, which creates or refreshes the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
 
 ## Promotion
 
@@ -141,18 +138,18 @@ Promotion examples:
 - final report
 - source/tests/docs changes
 
-Use `canvas_promote` to record explicit promotion targets and references. It records the promotion; it does not write arbitrary destination files by itself.
+Use `promote` to record explicit promotion targets and references. It records the promotion; it does not write arbitrary destination files by itself.
 
 ## Update Loop
 
 When updating an existing canvas:
 
-1. Use `canvas_get` to read metadata.
+1. Use `get` to read metadata.
 2. Preserve user edits.
-3. Use `canvas_update_state` for structured state changes.
+3. Use `update-state` for structured state changes.
 4. Edit returned local files only when notes, README, or custom surfaces need direct file work.
-5. Use `canvas_validate` after material changes.
-6. Refresh with `canvas_export_html` when browser inspection helps.
+5. Use `validate` after material changes.
+6. Refresh with `export-html` when browser inspection helps.
 7. Report changed files, storage path, promotion status, and how to continue.
 
 Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.

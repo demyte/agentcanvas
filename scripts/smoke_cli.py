@@ -66,15 +66,23 @@ class CliClient:
         if not self.script.exists():
             raise SmokeFailure(f"Canvas CLI wrapper not found: {self.script}")
 
-    def tool(self, name: str, payload: dict[str, Any]) -> Any:
-        result = self.tool_raw(name, payload)
+    def operation(self, name: str, payload: dict[str, Any]) -> Any:
+        result = self.operation_raw(name, payload)
         if result["returncode"] != 0:
             raise SmokeFailure(f"Canvas CLI failed for {name}: {result['data']}")
         return result["data"]
 
-    def tool_raw(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def operation_raw(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
+        args, cleanup = self.operation_args(name, payload)
+        try:
+            return self.run(args)
+        finally:
+            for path in cleanup:
+                path.unlink(missing_ok=True)
+
+    def run(self, args: list[str]) -> dict[str, Any]:
         result = subprocess.run(
-            [sys.executable, str(self.script), "tool", name, json.dumps(payload, separators=(",", ":"))],
+            [sys.executable, str(self.script), *args],
             cwd=self.root,
             check=False,
             capture_output=True,
@@ -83,15 +91,104 @@ class CliClient:
         try:
             data = json.loads(result.stdout)
         except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"Canvas CLI returned invalid JSON for {name}: {result.stdout}{result.stderr}") from exc
+            raise SmokeFailure(f"Canvas CLI returned invalid JSON for {' '.join(args)}: {result.stdout}{result.stderr}") from exc
         return {"returncode": result.returncode, "data": data, "stderr": result.stderr}
+
+    def operation_args(self, name: str, payload: dict[str, Any]) -> tuple[list[str], list[Path]]:
+        cleanup: list[Path] = []
+        args: list[str] = []
+        root = payload.get("root")
+        if root:
+            args.extend(["-root", str(root)])
+        if name == "init":
+            args.extend(["init", "-id", payload["id"], "-scope", payload["scope"]])
+            self.add_optional(args, payload, "anchor", "-anchor")
+            self.add_optional(args, payload, "title", "-title")
+            self.add_optional(args, payload, "purpose", "-purpose")
+            self.add_repeated(args, payload.get("human_actions"), "-human-action")
+            self.add_repeated(args, payload.get("agent_actions"), "-agent-action")
+            self.add_repeated(args, payload.get("promotion_targets"), "-promotion-target")
+            self.add_repeated(args, payload.get("associatedThreads"), "-associated-thread")
+            return args, cleanup
+        if name == "list":
+            args.append("list")
+            self.add_optional(args, payload, "lifecycle", "-lifecycle")
+            self.add_optional(args, payload, "threadId", "-thread-id")
+            return args, cleanup
+        if name == "get":
+            args.extend(["get", "-id", payload["id"]])
+            self.add_optional(args, payload, "lifecycle", "-lifecycle")
+            return args, cleanup
+        if name == "update-state":
+            args.extend(["update-state", "-id", payload["id"]])
+            updates = payload.get("updates", {})
+            if not isinstance(updates, dict):
+                raise SmokeFailure("update-state updates must be an object")
+            simple: dict[str, Any] = {}
+            complex_updates: dict[str, Any] = {}
+            for key, value in updates.items():
+                if isinstance(value, str):
+                    simple[key] = value
+                else:
+                    complex_updates[key] = value
+            for key, value in simple.items():
+                args.extend(["-set", f"{key}={value}"])
+            if complex_updates:
+                with tempfile.NamedTemporaryFile(
+                    "w",
+                    prefix="canvas-state-",
+                    suffix=".json",
+                    delete=False,
+                    encoding="utf-8",
+                ) as handle:
+                    json.dump(complex_updates, handle, indent=2)
+                    update_file = Path(handle.name)
+                cleanup.append(update_file)
+                args.extend(["-merge-file", str(update_file)])
+            return args, cleanup
+        if name == "validate":
+            args.extend(["validate", "-id", payload["id"]])
+            self.add_optional(args, payload, "lifecycle", "-lifecycle")
+            return args, cleanup
+        if name == "archive":
+            args.extend(["archive", "-id", payload["id"]])
+            return args, cleanup
+        if name == "associate-thread":
+            args.extend(["associate-thread", "-id", payload["id"], "-thread-id", payload["threadId"]])
+            self.add_optional(args, payload, "lifecycle", "-lifecycle")
+            return args, cleanup
+        if name == "promote":
+            args.extend(["promote", "-id", payload["id"], "-target", payload["target"], "-reference", payload["reference"]])
+            self.add_optional(args, payload, "note", "-note")
+            return args, cleanup
+        if name == "export-html":
+            args.extend(["export-html", "-id", payload["id"]])
+            self.add_optional(args, payload, "lifecycle", "-lifecycle")
+            self.add_optional(args, payload, "output", "-output")
+            return args, cleanup
+        raise SmokeFailure(f"Unknown Canvas operation: {name}")
+
+    @staticmethod
+    def add_optional(args: list[str], payload: dict[str, Any], key: str, flag: str) -> None:
+        value = payload.get(key)
+        if value:
+            args.extend([flag, str(value)])
+
+    @staticmethod
+    def add_repeated(args: list[str], values: Any, flag: str) -> None:
+        if not values:
+            return
+        if not isinstance(values, list):
+            raise SmokeFailure(f"{flag} values must be an array")
+        for value in values:
+            args.extend([flag, str(value)])
 
 
 def smoke(root: Path, canvas_id: str) -> dict[str, Any]:
     client = CliClient(root)
     with tempfile.TemporaryDirectory() as tmp:
-        created = client.tool(
-            "canvas_init",
+        created = client.operation(
+            "init",
             {
                 "id": canvas_id,
                 "scope": "thread",
@@ -102,22 +199,22 @@ def smoke(root: Path, canvas_id: str) -> dict[str, Any]:
                 "root": tmp,
             },
         )
-        listed_by_thread = client.tool("canvas_list", {"threadId": "thread-smoke", "root": tmp})
-        associated = client.tool(
-            "canvas_associate_thread",
+        listed_by_thread = client.operation("list", {"threadId": "thread-smoke", "root": tmp})
+        associated = client.operation(
+            "associate-thread",
             {"id": canvas_id, "threadId": "thread-associated-smoke", "root": tmp},
         )
-        updated = client.tool("canvas_update_state", {"id": canvas_id, "updates": {"status": "ready"}, "root": tmp})
-        fetched = client.tool("canvas_get", {"id": canvas_id, "root": tmp})
-        active = client.tool("canvas_validate", {"id": canvas_id, "lifecycle": "active", "root": tmp})
-        exported = client.tool("canvas_export_html", {"id": canvas_id, "root": tmp})
-        promoted = client.tool(
-            "canvas_promote",
+        updated = client.operation("update-state", {"id": canvas_id, "updates": {"status": "ready"}, "root": tmp})
+        fetched = client.operation("get", {"id": canvas_id, "root": tmp})
+        active = client.operation("validate", {"id": canvas_id, "lifecycle": "active", "root": tmp})
+        exported = client.operation("export-html", {"id": canvas_id, "root": tmp})
+        promoted = client.operation(
+            "promote",
             {"id": canvas_id, "target": "cli-report", "reference": "outputs/cli-report.md", "root": tmp},
         )
-        archived = client.tool("canvas_archive", {"id": canvas_id, "root": tmp})
-        archived_validation = client.tool(
-            "canvas_validate",
+        archived = client.operation("archive", {"id": canvas_id, "root": tmp})
+        archived_validation = client.operation(
+            "validate",
             {"id": canvas_id, "lifecycle": "archived", "root": tmp},
         )
 

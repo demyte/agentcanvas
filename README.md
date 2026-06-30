@@ -83,28 +83,28 @@ The bundled `canvas` skill tells Codex to defer creation, updates, validation, a
 
 ## CLI Operations
 
-Canvas bundles a Python CLI with tool-compatible operation names:
+Canvas bundles a Python CLI with command verbs:
 
-| Tool | Purpose |
+| Command | Purpose |
 | --- | --- |
-| `canvas_init` | Create a new canvas. |
-| `canvas_list` | List canvases, optionally by lifecycle or associated thread. |
-| `canvas_get` | Read canvas metadata. |
-| `canvas_update_state` | Shallow-merge structured updates into `state.json`. |
-| `canvas_validate` | Validate a canvas folder and metadata. |
-| `canvas_archive` | Move an active canvas to archived lifecycle. |
-| `canvas_associate_thread` | Attach another Codex thread id to a canvas. |
-| `canvas_promote` | Record that canvas output was explicitly promoted somewhere durable. |
-| `canvas_export_html` | Export a static `canvas.html` browser surface. |
+| `init` | Create a new canvas. |
+| `list` | List canvases, optionally by lifecycle or associated thread. |
+| `get` | Read canvas metadata. |
+| `update-state` | Merge structured updates into `state.json`. |
+| `validate` | Validate a canvas folder and metadata. |
+| `archive` | Move an active canvas to archived lifecycle. |
+| `associate-thread` | Attach another Codex thread id to a canvas. |
+| `promote` | Record that canvas output was explicitly promoted somewhere durable. |
+| `export-html` | Export a static `canvas.html` browser surface. |
 
-Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter `canvas_list` by `threadId`.
+Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter with `list -thread-id <thread-id>`.
 
 Run operations through:
 
 ```powershell
-python scripts\canvas.py tool canvas_init '{"id":"review-board","scope":"repo","anchor":"D:\\Projects\\repo"}'
-python scripts\canvas.py tool canvas_list '{"lifecycle":"active"}'
-python scripts\canvas.py tool canvas_validate '{"id":"review-board"}'
+python scripts\canvas.py init -id "review-board" -scope repo -anchor "D:\Projects\repo"
+python scripts\canvas.py list -lifecycle active
+python scripts\canvas.py validate -id "review-board"
 ```
 
 ## CLI Usage
@@ -113,48 +113,56 @@ The local CLI is useful for testing, inspection, and direct operations:
 
 ```powershell
 python scripts\canvas.py --help
+python scripts\canvas.py -?
+python scripts\canvas.py init -?
 ```
 
 Create a repo-scoped canvas:
 
 ```powershell
-python scripts\canvas.py init review-pr-123 `
-  --scope repo `
-  --anchor D:\Projects\my-repo `
-  --title "PR 123 Review" `
-  --purpose "Track review findings and follow-up validation."
+python scripts\canvas.py init -id review-pr-123 `
+  -scope repo `
+  -anchor D:\Projects\my-repo `
+  -title "PR 123 Review" `
+  -purpose "Track review findings and follow-up validation."
 ```
 
 Create a thread-scoped canvas:
 
 ```powershell
-python scripts\canvas.py init thread-brief `
-  --scope thread `
-  --associated-thread <thread-id>
+python scripts\canvas.py init -id thread-brief `
+  -scope thread `
+  -associated-thread <thread-id>
 ```
 
 List canvases associated with a thread:
 
 ```powershell
-python scripts\canvas.py list --thread-id <thread-id>
+python scripts\canvas.py list -thread-id <thread-id>
 ```
 
 Update structured state:
 
 ```powershell
-python scripts\canvas.py update-state review-pr-123 '{"status":"reviewing"}'
+python scripts\canvas.py update-state -id review-pr-123 -set status=reviewing
+```
+
+Merge richer state from a file:
+
+```powershell
+python scripts\canvas.py update-state -id review-pr-123 -merge-file .\state-update.json
 ```
 
 Export a browser surface:
 
 ```powershell
-python scripts\canvas.py export-html review-pr-123
+python scripts\canvas.py export-html -id review-pr-123
 ```
 
 Archive when finished:
 
 ```powershell
-python scripts\canvas.py archive review-pr-123
+python scripts\canvas.py archive -id review-pr-123
 ```
 
 ## Browser Surfaces
@@ -201,7 +209,7 @@ Examples include:
 - source, test, or docs changes
 - final report
 
-`canvas_promote` records the promotion target and reference. It does not perform arbitrary writes into the destination on its own.
+`promote` records the promotion target and reference. It does not perform arbitrary writes into the destination on its own.
 
 ## Configuration
 

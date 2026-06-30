@@ -25,23 +25,24 @@ class CanvasCliTests(unittest.TestCase):
     def test_init_validate_archive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             init = self.run_cli(
-                "--root",
+                "-root",
                 tmp,
                 "init",
+                "-id",
                 "CLI Smoke",
-                "--scope",
+                "-scope",
                 "thread",
-                "--purpose",
+                "-purpose",
                 "cli test",
-                "--human-action",
+                "-human-action",
                 "approve_cli",
-                "--agent-action",
+                "-agent-action",
                 "summarize_cli",
-                "--promotion-target",
+                "-promotion-target",
                 "cli-report",
-                "--associated-thread",
+                "-associated-thread",
                 "thread-cli",
-                "--associated-thread",
+                "-associated-thread",
                 "thread-shared",
             )
             self.assertEqual(init.returncode, 0, init.stderr)
@@ -52,21 +53,21 @@ class CanvasCliTests(unittest.TestCase):
             self.assertEqual(created["promotion_targets"], ["cli-report"])
             self.assertEqual(created["associatedThreads"], ["thread-cli", "thread-shared"])
 
-            list_result = self.run_cli("--root", tmp, "list", "--thread-id", "thread-cli")
+            list_result = self.run_cli("-root", tmp, "list", "-thread-id", "thread-cli")
             self.assertEqual(list_result.returncode, 0, list_result.stdout)
             self.assertEqual([item["id"] for item in json.loads(list_result.stdout)], ["cli-smoke"])
 
-            associate = self.run_cli("--root", tmp, "associate-thread", "cli-smoke", "thread-extra")
+            associate = self.run_cli("-root", tmp, "associate-thread", "-id", "cli-smoke", "-thread-id", "thread-extra")
             self.assertEqual(associate.returncode, 0, associate.stdout)
             associate_payload = json.loads(associate.stdout)
             self.assertEqual(associate_payload["associatedThreads"], ["thread-cli", "thread-shared", "thread-extra"])
             self.assertEqual(associate_payload["last_updated_from_thread"], "thread-extra")
 
-            validate = self.run_cli("--root", tmp, "validate", "cli-smoke")
+            validate = self.run_cli("-root", tmp, "validate", "-id", "cli-smoke")
             self.assertEqual(validate.returncode, 0, validate.stdout)
             self.assertTrue(json.loads(validate.stdout)["valid"])
 
-            export = self.run_cli("--root", tmp, "export-html", "cli-smoke")
+            export = self.run_cli("-root", tmp, "export-html", "-id", "cli-smoke")
             self.assertEqual(export.returncode, 0, export.stdout)
             export_payload = json.loads(export.stdout)
             html_path = Path(export_payload["html_path"])
@@ -75,73 +76,99 @@ class CanvasCliTests(unittest.TestCase):
             self.assertTrue(data_path.exists())
 
             promote = self.run_cli(
-                "--root",
+                "-root",
                 tmp,
                 "promote",
+                "-id",
                 "cli-smoke",
-                "--target",
+                "-target",
                 "cli-report",
-                "--reference",
+                "-reference",
                 "outputs/cli-report.md",
             )
             self.assertEqual(promote.returncode, 0, promote.stdout)
             self.assertEqual(json.loads(promote.stdout)["promotions"][-1]["target"], "cli-report")
 
-            archive = self.run_cli("--root", tmp, "archive", "cli-smoke")
+            archive = self.run_cli("-root", tmp, "archive", "-id", "cli-smoke")
             self.assertEqual(archive.returncode, 0, archive.stdout)
             self.assertEqual(json.loads(archive.stdout)["lifecycle"], "archived")
 
     def test_invalid_scope_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            result = self.run_cli("--root", tmp, "init", "Bad", "--scope", "invalid")
+            result = self.run_cli("-root", tmp, "init", "-id", "Bad", "-scope", "invalid")
             self.assertNotEqual(result.returncode, 0)
 
-    def test_tool_command_covers_canvas_operations(self) -> None:
+    def test_verb_commands_cover_canvas_operations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            created = self.run_tool(
-                "canvas_init",
-                {
-                    "id": "Tool CLI",
-                    "scope": "thread",
-                    "root": tmp,
-                    "associatedThreads": ["thread-tool"],
-                    "promotion_targets": ["tool-report"],
-                },
+            created = self.run_json(
+                "-root",
+                tmp,
+                "init",
+                "-id",
+                "Verb CLI",
+                "-scope",
+                "thread",
+                "-associated-thread",
+                "thread-tool",
+                "-promotion-target",
+                "tool-report",
             )
-            self.assertEqual(created["id"], "tool-cli")
+            self.assertEqual(created["id"], "verb-cli")
 
-            listed = self.run_tool("canvas_list", {"root": tmp, "threadId": "thread-tool"})
-            self.assertEqual([item["id"] for item in listed], ["tool-cli"])
+            listed = self.run_json("-root", tmp, "list", "-thread-id", "thread-tool")
+            self.assertEqual([item["id"] for item in listed], ["verb-cli"])
 
-            associated = self.run_tool(
-                "canvas_associate_thread",
-                {"id": "tool-cli", "root": tmp, "threadId": "thread-extra"},
-            )
+            associated = self.run_json("-root", tmp, "associate-thread", "-id", "verb-cli", "-thread-id", "thread-extra")
             self.assertEqual(associated["associatedThreads"], ["thread-tool", "thread-extra"])
 
-            updated = self.run_tool("canvas_update_state", {"id": "tool-cli", "root": tmp, "updates": {"status": "ready"}})
+            updated = self.run_json("-root", tmp, "update-state", "-id", "verb-cli", "-set", "status=ready")
             self.assertEqual(updated["state"]["status"], "ready")
 
-            fetched = self.run_tool("canvas_get", {"id": "tool-cli", "root": tmp})
+            state_file = Path(tmp) / "state-update.json"
+            state_file.write_text(json.dumps({"nested": {"status": "merged"}}), encoding="utf-8")
+            merged = self.run_json("-root", tmp, "update-state", "-id", "verb-cli", "-merge-file", str(state_file))
+            self.assertEqual(merged["state"]["nested"]["status"], "merged")
+
+            fetched = self.run_json("-root", tmp, "get", "-id", "verb-cli")
             self.assertEqual(fetched["scope"], "thread")
 
-            validation = self.run_tool("canvas_validate", {"id": "tool-cli", "root": tmp})
+            validation = self.run_json("-root", tmp, "validate", "-id", "verb-cli")
             self.assertTrue(validation["valid"])
 
-            exported = self.run_tool("canvas_export_html", {"id": "tool-cli", "root": tmp})
+            exported = self.run_json("-root", tmp, "export-html", "-id", "verb-cli")
             self.assertTrue(Path(exported["html_path"]).exists())
 
-            promoted = self.run_tool(
-                "canvas_promote",
-                {"id": "tool-cli", "root": tmp, "target": "tool-report", "reference": "outputs/tool-report.md"},
+            promoted = self.run_json(
+                "-root",
+                tmp,
+                "promote",
+                "-id",
+                "verb-cli",
+                "-target",
+                "tool-report",
+                "-reference",
+                "outputs/tool-report.md",
             )
             self.assertEqual(promoted["promotions"][-1]["target"], "tool-report")
 
-            archived = self.run_tool("canvas_archive", {"id": "tool-cli", "root": tmp})
+            archived = self.run_json("-root", tmp, "archive", "-id", "verb-cli")
             self.assertEqual(archived["lifecycle"], "archived")
 
-    def run_tool(self, name: str, payload: dict[str, object]) -> dict[str, object] | list[dict[str, object]]:
-        result = self.run_cli("tool", name, json.dumps(payload))
+    def test_help_aliases_show_structured_reference(self) -> None:
+        for flag in ["--help", "-h", "-?"]:
+            result = self.run_cli(flag)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Commands:", result.stdout)
+            self.assertIn("Examples:", result.stdout)
+            self.assertIn("update-state", result.stdout)
+
+        command_help = self.run_cli("init", "-?")
+        self.assertEqual(command_help.returncode, 0, command_help.stderr)
+        self.assertIn("-id", command_help.stdout)
+        self.assertIn("-scope", command_help.stdout)
+
+    def run_json(self, *args: str) -> dict[str, object] | list[dict[str, object]]:
+        result = self.run_cli(*args)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout)
 
