@@ -241,6 +241,15 @@ class McpServerTests(unittest.TestCase):
         self.assertIsNone(ping)
         self.assertIsNone(cancelled)
 
+    def test_id_bearing_initialized_notification_is_a_request_error(self) -> None:
+        response = canvas_mcp_server.handle_request(
+            {"jsonrpc": "2.0", "id": 101, "method": "notifications/initialized", "params": {}}
+        )
+
+        assert response is not None
+        self.assertEqual(response["error"]["code"], -32601)
+        self.assertNotIn("result", response)
+
     def test_tool_argument_validation_rejects_bad_shapes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bad_threads = canvas_mcp_server.handle_request(
@@ -351,6 +360,33 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("error", response)
         self.assertEqual(response["error"]["code"], -32000)
         self.assertNotIn("result", response)
+
+    def test_resource_read_uri_must_be_non_empty_string(self) -> None:
+        for index, params in enumerate([{}, {"uri": None}, {"uri": 5}, {"uri": ""}], start=1):
+            response = canvas_mcp_server.handle_request(
+                {"jsonrpc": "2.0", "id": 300 + index, "method": "resources/read", "params": params}
+            )
+
+            assert response is not None
+            self.assertEqual(response["error"]["code"], -32602)
+            self.assertIn("uri must be a non-empty string", response["error"]["message"])
+            self.assertNotIn("result", response)
+
+    def test_valid_tool_execution_failures_are_tool_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            response = canvas_mcp_server.handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 400,
+                    "method": "tools/call",
+                    "params": {"name": "canvas_get", "arguments": {"id": "missing", "root": tmp}},
+                }
+            )
+
+        assert response is not None
+        self.assertNotIn("error", response)
+        self.assertTrue(response["result"]["isError"])
+        self.assertIn("Canvas not found", response["result"]["content"][0]["text"])
 
     def test_newline_json_transport_matches_codex_stdio(self) -> None:
         response = self.send_line({"jsonrpc": "2.0", "id": 10, "method": "tools/list", "params": {}})

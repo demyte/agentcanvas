@@ -343,8 +343,6 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
                 },
                 "serverInfo": {"name": "canvas", "version": "0.1.0"},
             }
-        elif method == "notifications/initialized":
-            return None
         elif method == "ping":
             result = {}
         elif method == "tools/list":
@@ -366,8 +364,11 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
         elif method == "resources/list":
             result = list_resources()
         elif method == "resources/read":
+            uri = params.get("uri")
+            if not isinstance(uri, str) or not uri:
+                return json_rpc_error(request_id, -32602, "Invalid params: uri must be a non-empty string.")
             try:
-                result = read_resource(params.get("uri", ""))
+                result = read_resource(uri)
             except CanvasError as exc:
                 return json_rpc_error(request_id, -32000, str(exc))
         else:

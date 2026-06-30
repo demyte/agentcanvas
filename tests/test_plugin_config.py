@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 import sys
 import argparse
+import contextlib
+import io
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,16 +48,31 @@ class PluginConfigTests(unittest.TestCase):
             self.write_plugin_root(cache_root / "0.1.0+z-stale", "0.1.0+z-stale")
             expected = self.write_plugin_root(cache_root / "0.1.0+current", "0.1.0+current")
             original = smoke_mcp.DEFAULT_CACHE_ROOT
+            original_run = run_scenarios.run
+            original_argv = sys.argv
+            captured: dict[str, Path] = {}
+
+            def fake_run(plugin_root: Path, output: Path) -> dict[str, object]:
+                captured["plugin_root"] = plugin_root
+                return {"ok": True, "plugin_root": str(plugin_root), "output": str(output)}
+
             try:
                 smoke_mcp.DEFAULT_CACHE_ROOT = cache_root
+                run_scenarios.run = fake_run
                 args = argparse.Namespace(
                     installed=True,
                     plugin_root="",
                     expected_version="0.1.0+current",
                 )
                 self.assertEqual(run_scenarios.resolve_plugin_root(args), expected)
+                sys.argv = ["run_scenarios.py", "--installed", "--expected-version", "0.1.0+current"]
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(run_scenarios.main(), 0)
+                self.assertEqual(captured["plugin_root"], expected.resolve())
             finally:
                 smoke_mcp.DEFAULT_CACHE_ROOT = original
+                run_scenarios.run = original_run
+                sys.argv = original_argv
 
     def test_smoke_rejects_absolute_mcp_arg(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

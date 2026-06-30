@@ -143,6 +143,24 @@ class CanvasCoreTests(unittest.TestCase):
             created = registry.init_canvas("Bad Thread Init", scope="thread", associated_threads=["thread-alpha"])
             self.assertEqual(created["associatedThreads"], ["thread-alpha"])
 
+    def test_init_rolls_back_directory_after_write_failure(self) -> None:
+        class FailingRegistry(CanvasRegistry):
+            def _write_json(self, path: Path, data: dict) -> None:
+                super()._write_json(path, data)
+                if path.name == "canvas.json":
+                    raise OSError("simulated write failure")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = FailingRegistry(Path(tmp))
+            canvas_dir = Path(tmp) / "active" / "write-failure"
+
+            with self.assertRaises(OSError):
+                registry.init_canvas("Write Failure", scope="project")
+
+            self.assertFalse(canvas_dir.exists())
+            created = CanvasRegistry(Path(tmp)).init_canvas("Write Failure", scope="project")
+            self.assertEqual(created["id"], "write-failure")
+
     def test_validation_rejects_stale_storage_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = CanvasRegistry(Path(tmp))
@@ -201,6 +219,21 @@ class CanvasCoreTests(unittest.TestCase):
             validation = registry.validate_canvas("folder-name")
             self.assertFalse(validation["valid"])
             self.assertIn("id must match the canvas directory", validation["errors"])
+
+    def test_export_validates_requested_canvas_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Folder Name", scope="project")
+            registry.init_canvas("Different Id", scope="project")
+            metadata_file = Path(tmp) / "active" / "folder-name" / "canvas.json"
+            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+            metadata["id"] = "different-id"
+            metadata_file.write_text(json.dumps(metadata), encoding="utf-8")
+
+            exported = registry.export_html("folder-name")
+            self.assertFalse(exported["valid"])
+            data_path = Path(exported["data_path"])
+            self.assertIn("id must match the canvas directory", data_path.read_text(encoding="utf-8"))
 
     def test_associate_thread_updates_existing_canvas_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

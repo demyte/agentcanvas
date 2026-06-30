@@ -186,46 +186,50 @@ class CanvasRegistry:
         promotion_target_ids = coerce_list(promotion_targets, DEFAULT_PROMOTION_TARGETS, "promotion_targets")
 
         canvas_dir.mkdir(parents=True)
-        metadata = {
-            "id": normalized_id,
-            "kind": "canvas",
-            "lifecycle": "active",
-            "authority": "working-artifact",
-            "scope": scope,
-            "anchor": anchor,
-            "anchor_fingerprint": anchor_fingerprint(anchor),
-            "storage_policy": "external-user-codex",
-            "storage_path": str(canvas_dir),
-            "title": title or normalized_id,
-            "purpose": purpose,
-            "created_from_thread": "",
-            "last_updated_from_thread": "",
-            "associatedThreads": associated_thread_ids,
-            "created_at": now,
-            "updated_at": now,
-            "state_files": state_files,
-            "human_actions": human_action_ids,
-            "agent_actions": agent_action_ids,
-            "shared_state": state_files,
-            "promotion_targets": promotion_target_ids,
-            "promotions": [],
-        }
-
-        self._write_json(canvas_dir / "canvas.json", metadata)
-        self._write_json(
-            canvas_dir / "state.json",
-            {
-                "items": [],
-                "decisions": [],
-                "open_questions": [],
+        try:
+            metadata = {
+                "id": normalized_id,
+                "kind": "canvas",
+                "lifecycle": "active",
+                "authority": "working-artifact",
+                "scope": scope,
+                "anchor": anchor,
+                "anchor_fingerprint": anchor_fingerprint(anchor),
+                "storage_policy": "external-user-codex",
+                "storage_path": str(canvas_dir),
+                "title": title or normalized_id,
+                "purpose": purpose,
+                "created_from_thread": "",
+                "last_updated_from_thread": "",
+                "associatedThreads": associated_thread_ids,
+                "created_at": now,
                 "updated_at": now,
-            },
-        )
-        (canvas_dir / "notes.md").write_text(
-            f"# {metadata['title']}\n\nPurpose: {purpose or 'Working canvas.'}\n",
-            encoding="utf-8",
-        )
-        (canvas_dir / "README.md").write_text(self._readme_text(metadata), encoding="utf-8")
+                "state_files": state_files,
+                "human_actions": human_action_ids,
+                "agent_actions": agent_action_ids,
+                "shared_state": state_files,
+                "promotion_targets": promotion_target_ids,
+                "promotions": [],
+            }
+
+            self._write_json(canvas_dir / "canvas.json", metadata)
+            self._write_json(
+                canvas_dir / "state.json",
+                {
+                    "items": [],
+                    "decisions": [],
+                    "open_questions": [],
+                    "updated_at": now,
+                },
+            )
+            (canvas_dir / "notes.md").write_text(
+                f"# {metadata['title']}\n\nPurpose: {purpose or 'Working canvas.'}\n",
+                encoding="utf-8",
+            )
+            (canvas_dir / "README.md").write_text(self._readme_text(metadata), encoding="utf-8")
+        except Exception:
+            shutil.rmtree(canvas_dir, ignore_errors=True)
+            raise
         return metadata
 
     def list_canvases(self, lifecycle: str | None = None, thread_id: str | None = None) -> list[dict[str, Any]]:
@@ -490,7 +494,7 @@ class CanvasRegistry:
         notes_file = canvas_dir / "notes.md"
         state = self._read_json(state_file) if state_file.exists() else {}
         notes = notes_file.read_text(encoding="utf-8") if notes_file.exists() else ""
-        validation = self.validate_canvas(metadata["id"], metadata["lifecycle"])
+        validation = self.validate_canvas(canvas_dir.name, canvas_dir.parent.name)
 
         output_path = Path(output).expanduser() if output else canvas_dir / "canvas.html"
         if not output_path.is_absolute():
