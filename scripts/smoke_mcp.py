@@ -113,6 +113,7 @@ def assert_tool_names(tools: list[dict[str, Any]]) -> None:
         "canvas_update_state",
         "canvas_validate",
         "canvas_archive",
+        "canvas_associate_thread",
         "canvas_promote",
         "canvas_export_html",
     }
@@ -173,6 +174,23 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
                     request_id=30,
                 )
             )
+            associated = tool_payload(
+                client.request(
+                    "tools/call",
+                    {
+                        "name": "canvas_associate_thread",
+                        "arguments": {"id": canvas_id, "threadId": "thread-associated-smoke", "root": tmp},
+                    },
+                    request_id=31,
+                )
+            )
+            listed_by_associated_thread = tool_payload(
+                client.request(
+                    "tools/call",
+                    {"name": "canvas_list", "arguments": {"threadId": "thread-associated-smoke", "root": tmp}},
+                    request_id=32,
+                )
+            )
             active = tool_payload(
                 client.request(
                     "tools/call",
@@ -219,11 +237,13 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
             raise SmokeFailure(f"Validation failed: active={active} archived={archived_validation}")
         if [item["id"] for item in listed_by_thread] != [canvas_id]:
             raise SmokeFailure(f"Thread-filtered list was unexpected: {listed_by_thread}")
+        if [item["id"] for item in listed_by_associated_thread] != [canvas_id]:
+            raise SmokeFailure(f"Associated thread-filtered list was unexpected: {listed_by_associated_thread}")
         return {
             "server": {"command": command, "cwd": str(cwd)},
             "tools": [tool["name"] for tool in listed["result"]["tools"]],
             "created": created["id"],
-            "associatedThreads": created["associatedThreads"],
+            "associatedThreads": associated["associatedThreads"],
             "exports": {"active": exported["valid"], "archived": archived_export["valid"]},
             "archived": archived["lifecycle"],
             "validations": {"active": active["valid"], "archived": archived_validation["valid"]},

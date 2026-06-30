@@ -257,6 +257,34 @@ class CanvasRegistry:
         self._write_json(metadata_file, metadata)
         return metadata
 
+    def associate_thread(
+        self,
+        canvas_id: str,
+        *,
+        thread_id: str,
+        lifecycle: str | None = "active",
+    ) -> dict[str, Any]:
+        thread_id = thread_id.strip()
+        if not thread_id:
+            raise CanvasValidationError("threadId cannot be empty.")
+        metadata_file = self._metadata_path(canvas_id, lifecycle)
+        metadata = self._read_json(metadata_file)
+        associated_threads = metadata.get("associatedThreads", [])
+        if not isinstance(associated_threads, list) or not all(
+            isinstance(item, str) and item.strip() for item in associated_threads
+        ):
+            raise CanvasValidationError("associatedThreads must be an array of non-empty strings")
+        if thread_id not in associated_threads:
+            associated_threads.append(thread_id)
+        metadata["associatedThreads"] = associated_threads
+        metadata["last_updated_from_thread"] = thread_id
+        metadata["updated_at"] = utc_now()
+        self._write_json(metadata_file, metadata)
+        validation = self.validate_canvas(metadata["id"], metadata["lifecycle"])
+        if not validation["valid"]:
+            raise CanvasValidationError("; ".join(validation["errors"]))
+        return metadata
+
     def validate_canvas(self, canvas_id: str, lifecycle: str | None = None) -> dict[str, Any]:
         metadata_file = self._metadata_path(canvas_id, lifecycle)
         canvas_dir = metadata_file.parent

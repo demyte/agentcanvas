@@ -44,6 +44,11 @@ def build_parser() -> argparse.ArgumentParser:
     archive = sub.add_parser("archive", help="Archive a canvas.")
     archive.add_argument("id")
 
+    associate_thread = sub.add_parser("associate-thread", help="Associate a thread id with a canvas.")
+    associate_thread.add_argument("id")
+    associate_thread.add_argument("thread_id")
+    associate_thread.add_argument("--lifecycle", choices=["active", "archived"], default="active")
+
     promote = sub.add_parser("promote", help="Record an explicit promotion.")
     promote.add_argument("id")
     promote.add_argument("--target", required=True)
@@ -91,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result["valid"] else 2
         elif args.command == "archive":
             print_json(registry.archive_canvas(args.id))
+        elif args.command == "associate-thread":
+            print_json(registry.associate_thread(args.id, thread_id=args.thread_id, lifecycle=args.lifecycle))
         elif args.command == "promote":
             print_json(registry.promote_canvas(args.id, target=args.target, reference=args.reference, note=args.note))
         elif args.command == "export-html":

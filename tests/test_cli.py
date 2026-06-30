@@ -56,6 +56,12 @@ class CanvasCliTests(unittest.TestCase):
             self.assertEqual(list_result.returncode, 0, list_result.stdout)
             self.assertEqual([item["id"] for item in json.loads(list_result.stdout)], ["cli-smoke"])
 
+            associate = self.run_cli("--root", tmp, "associate-thread", "cli-smoke", "thread-extra")
+            self.assertEqual(associate.returncode, 0, associate.stdout)
+            associate_payload = json.loads(associate.stdout)
+            self.assertEqual(associate_payload["associatedThreads"], ["thread-cli", "thread-shared", "thread-extra"])
+            self.assertEqual(associate_payload["last_updated_from_thread"], "thread-extra")
+
             validate = self.run_cli("--root", tmp, "validate", "cli-smoke")
             self.assertEqual(validate.returncode, 0, validate.stdout)
             self.assertTrue(json.loads(validate.stdout)["valid"])

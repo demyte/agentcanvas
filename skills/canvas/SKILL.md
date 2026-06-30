@@ -62,7 +62,7 @@ The MCP maintains the core files:
 - `notes.md`: readable working notes.
 - `README.md`: quick human/agent orientation.
 
-For thread-scoped canvases, pass one or more known thread identifiers as `associatedThreads` to `canvas_init`. Use `canvas_list` with `threadId` to find canvases tied to a thread. Populate thread identifiers only when available; leave them empty rather than inventing them.
+For thread-scoped canvases, pass one or more known thread identifiers as `associatedThreads` to `canvas_init`. Use `canvas_associate_thread` to tie an existing canvas to another thread, and `canvas_list` with `threadId` to find canvases tied to a thread. Populate thread identifiers only when available; leave them empty rather than inventing them.
 
 ## Capabilities
 

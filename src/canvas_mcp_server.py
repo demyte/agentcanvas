@@ -113,6 +113,18 @@ TOOLS: dict[str, dict[str, Any]] = {
             ["id"],
         ),
     },
+    "canvas_associate_thread": {
+        "description": "Associate a thread id with an existing canvas.",
+        "inputSchema": schema(
+            {
+                "id": {"type": "string"},
+                "threadId": {"type": "string"},
+                "lifecycle": {"type": "string", "enum": ["active", "archived"]},
+                "root": {"type": "string", "default": ""},
+            },
+            ["id", "threadId"],
+        ),
+    },
     "canvas_promote": {
         "description": "Record an explicit promotion target/reference for a canvas.",
         "inputSchema": schema(
@@ -184,6 +196,10 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return as_tool_result(registry.validate_canvas(args["id"], args.get("lifecycle")))
     if name == "canvas_archive":
         return as_tool_result(registry.archive_canvas(args["id"]))
+    if name == "canvas_associate_thread":
+        return as_tool_result(
+            registry.associate_thread(args["id"], thread_id=args["threadId"], lifecycle=args.get("lifecycle") or "active")
+        )
     if name == "canvas_promote":
         return as_tool_result(
             registry.promote_canvas(

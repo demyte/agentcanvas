@@ -63,10 +63,13 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("canvas_init", names)
         self.assertIn("canvas_validate", names)
         self.assertIn("canvas_export_html", names)
+        self.assertIn("canvas_associate_thread", names)
         canvas_list = next(tool for tool in tools["result"]["tools"] if tool["name"] == "canvas_list")
         self.assertIn("threadId", canvas_list["inputSchema"]["properties"])
         canvas_init = next(tool for tool in tools["result"]["tools"] if tool["name"] == "canvas_init")
         self.assertIn("associatedThreads", canvas_init["inputSchema"]["properties"])
+        associate_thread = next(tool for tool in tools["result"]["tools"] if tool["name"] == "canvas_associate_thread")
+        self.assertIn("threadId", associate_thread["inputSchema"]["properties"])
         self.assertIsNone(tools["result"]["nextCursor"])
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -128,6 +131,22 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(thread_list["result"]["isError"])
             thread_list_payload = json.loads(thread_list["result"]["content"][0]["text"])
             self.assertEqual([item["id"] for item in thread_list_payload], ["mcp-test"])
+
+            associated = self.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 33,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_associate_thread",
+                        "arguments": {"id": "mcp-test", "threadId": "thread-gamma", "root": tmp},
+                    },
+                }
+            )
+            self.assertFalse(associated["result"]["isError"])
+            associated_payload = json.loads(associated["result"]["content"][0]["text"])
+            self.assertEqual(associated_payload["associatedThreads"], ["thread-alpha", "thread-shared", "thread-gamma"])
+            self.assertEqual(associated_payload["last_updated_from_thread"], "thread-gamma")
 
             validated = self.send(
                 {

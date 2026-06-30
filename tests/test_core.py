@@ -119,6 +119,30 @@ class CanvasCoreTests(unittest.TestCase):
             self.assertFalse(validation["valid"])
             self.assertIn("associatedThreads must be an array of non-empty strings", validation["errors"])
 
+    def test_associate_thread_updates_existing_canvas_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Existing Thread Target", scope="thread", associated_threads=["thread-a"])
+
+            updated = registry.associate_thread("existing-thread-target", thread_id="thread-b")
+            updated_again = registry.associate_thread("existing-thread-target", thread_id="thread-b")
+
+            self.assertEqual(updated["associatedThreads"], ["thread-a", "thread-b"])
+            self.assertEqual(updated["last_updated_from_thread"], "thread-b")
+            self.assertEqual(updated_again["associatedThreads"], ["thread-a", "thread-b"])
+            self.assertEqual(
+                [item["id"] for item in registry.list_canvases(thread_id="thread-b")],
+                ["existing-thread-target"],
+            )
+
+    def test_associate_thread_rejects_empty_thread_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Empty Thread", scope="thread")
+
+            with self.assertRaises(CanvasValidationError):
+                registry.associate_thread("empty-thread", thread_id=" ")
+
     def test_reject_duplicate_canvas(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = CanvasRegistry(Path(tmp))
