@@ -116,7 +116,7 @@ src/canvas_mcp_server.py
 The plugin MCP config starts the server relative to the installed plugin root:
 
 ```text
-C:\Users\james\AppData\Local\Python\pythoncore-3.14-64\python.exe ./src/canvas_mcp_server.py
+python ./src/canvas_mcp_server.py
 ```
 
 This repo is ready to be added to a local Codex plugin marketplace. The current build does not modify any global Codex marketplace files automatically.

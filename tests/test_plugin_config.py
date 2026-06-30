@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import unittest
 from pathlib import Path
 
@@ -22,11 +21,7 @@ class PluginConfigTests(unittest.TestCase):
 
     def assert_server_uses_plugin_relative_startup(self, server: dict[str, object]) -> None:
         command = str(server["command"])
-        if os.name == "nt":
-            self.assertTrue(Path(command).is_absolute())
-            self.assertTrue(Path(command).exists())
-        else:
-            self.assertEqual(command, "python")
+        self.assertEqual(command, "python")
         self.assertEqual(server["args"], ["./src/canvas_mcp_server.py"])
         self.assertEqual(server["cwd"], ".")
         args = server["args"]
