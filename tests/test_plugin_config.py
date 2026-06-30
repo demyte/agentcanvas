@@ -104,9 +104,11 @@ class PluginConfigTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertIn("cache matching", result.stdout)
-        self.assertIn("expected", result.stdout)
-        self.assertIn("version", result.stdout)
+        normalized_help = " ".join(result.stdout.split())
+        self.assertIn(
+            "Plugin root to test. Defaults to source root, or in installed mode to the cache matching the expected version.",
+            normalized_help,
+        )
         self.assertNotIn("latest cache", result.stdout)
 
     def assert_server_uses_plugin_relative_startup(self, server: dict[str, object]) -> None:

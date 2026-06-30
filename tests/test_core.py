@@ -180,6 +180,8 @@ class CanvasCoreTests(unittest.TestCase):
             self.assertTrue(canvas_dir.exists())
             self.assertIn("rollback could not remove", str(raised.exception))
             self.assertIn(str(canvas_dir), str(raised.exception))
+            self.assertIsInstance(raised.exception.__cause__, OSError)
+            self.assertEqual(str(raised.exception.__cause__), "locked")
 
     def test_validation_rejects_stale_storage_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -232,8 +232,9 @@ class CanvasRegistry:
                 shutil.rmtree(canvas_dir)
             except Exception as cleanup_exc:
                 raise CanvasValidationError(
-                    f"Canvas initialization failed and rollback could not remove {canvas_dir}: {cleanup_exc}"
-                ) from exc
+                    "Canvas initialization failed and rollback could not remove "
+                    f"{canvas_dir}: {cleanup_exc}. Original failure: {exc}"
+                ) from cleanup_exc
             if canvas_dir.exists():
                 raise CanvasValidationError(
                     f"Canvas initialization failed and rollback left a partial canvas at {canvas_dir}"
