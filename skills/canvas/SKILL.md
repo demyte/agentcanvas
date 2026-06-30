@@ -116,6 +116,8 @@ Next.js + Tailwind + shadcn/ui
   Only when server behavior, routing, API routes, auth, or similar features are genuinely needed.
 ```
 
+If the `frontend-design` skill is installed and the canvas includes a new or materially revised browser surface, use that skill before designing or editing the UI. If it is not installed or cannot be read, continue with this surface guidance and note the fallback.
+
 Do not choose Next.js by default for local canvas artifacts.
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
