@@ -15,6 +15,14 @@ If the MCP tools are not visible, use tool discovery with the exact query `mcp__
 
 If the MCP tools are still not exposed after that exact discovery query, do not hand-create canvas metadata or invent the storage layout. Use the installed Canvas CLI only as a compatibility path for the same operations, and say clearly that MCP tools were not exposed. Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or narrowly repairing a failed operation.
 
+## MCP Server Lifecycle
+
+For normal canvas work, do not manually start or daemonize the Canvas MCP server. Codex owns MCP startup from the installed plugin manifest and `.mcp.json`; using or discovering the `mcp__canvas` tools is the correct way to start it as needed.
+
+Do not manually stop the Canvas MCP server during ordinary canvas creation, updates, validation, export, or archival. If a tool call returns a transient transport error, retry discovery once in the current thread; if it still fails, use the installed CLI compatibility path and report that the MCP transport was not usable.
+
+Manual process cleanup is only for plugin development or reinstall recovery, especially when an old `canvas_mcp_server.py` process is holding a versioned plugin cache folder open. In that case, stop only stale Canvas MCP processes, reinstall the plugin through the normal cachebuster flow, validate the installed plugin, and use a new thread to test the updated tools.
+
 ## Model
 
 ```text
