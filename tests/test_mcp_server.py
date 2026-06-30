@@ -211,6 +211,27 @@ class McpServerTests(unittest.TestCase):
         response = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": 99, "method": "ping"})
         self.assertEqual(response, {"jsonrpc": "2.0", "id": 99, "result": {}})
 
+    def test_request_id_must_be_string_or_integer(self) -> None:
+        for bad_id in [None, 1.5, True]:
+            response = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": bad_id, "method": "ping"})
+            assert response is not None
+            self.assertEqual(response["error"]["code"], -32600)
+            self.assertIsNone(response["id"])
+
+        string_id = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": "request-a", "method": "ping"})
+        int_id = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": 123, "method": "ping"})
+        self.assertEqual(string_id, {"jsonrpc": "2.0", "id": "request-a", "result": {}})
+        self.assertEqual(int_id, {"jsonrpc": "2.0", "id": 123, "result": {}})
+
+    def test_params_must_be_an_object_when_present(self) -> None:
+        response = canvas_mcp_server.handle_request(
+            {"jsonrpc": "2.0", "id": 100, "method": "tools/call", "params": "bad"}
+        )
+
+        assert response is not None
+        self.assertEqual(response["error"]["code"], -32602)
+        self.assertIn("params must be an object", response["error"]["message"])
+
     def test_notifications_do_not_emit_responses(self) -> None:
         ping = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "method": "ping"})
         cancelled = canvas_mcp_server.handle_request(
@@ -262,11 +283,59 @@ class McpServerTests(unittest.TestCase):
         assert missing_id is not None
         assert bad_updates is not None
         for response in [bad_threads, missing_id, bad_updates]:
-            self.assertNotIn("error", response)
-            self.assertTrue(response["result"]["isError"])
-        self.assertIn("associatedThreads", bad_threads["result"]["content"][0]["text"])
-        self.assertIn("Missing required argument", missing_id["result"]["content"][0]["text"])
-        self.assertIn("updates must be an object", bad_updates["result"]["content"][0]["text"])
+            self.assertNotIn("result", response)
+            self.assertEqual(response["error"]["code"], -32602)
+        self.assertIn("associatedThreads", bad_threads["error"]["message"])
+        self.assertIn("Missing required argument", missing_id["error"]["message"])
+        self.assertIn("updates must be an object", bad_updates["error"]["message"])
+
+    def test_unknown_tool_and_bad_arguments_are_protocol_errors(self) -> None:
+        cases = [
+            {
+                "name": "not_a_tool",
+                "arguments": {},
+                "message": "Unknown tool",
+            },
+            {
+                "name": "canvas_list",
+                "arguments": [],
+                "message": "Tool arguments must be an object",
+            },
+            {
+                "name": "canvas_list",
+                "arguments": None,
+                "message": "Tool arguments must be an object",
+            },
+            {
+                "name": "canvas_list",
+                "arguments": "",
+                "message": "Tool arguments must be an object",
+            },
+            {
+                "name": "canvas_list",
+                "arguments": {"lifecycle": "pending"},
+                "message": "lifecycle must be one of",
+            },
+            {
+                "name": "canvas_list",
+                "arguments": {"unexpected": "value"},
+                "message": "Unknown argument",
+            },
+        ]
+        for index, case in enumerate(cases, start=1):
+            response = canvas_mcp_server.handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 200 + index,
+                    "method": "tools/call",
+                    "params": {"name": case["name"], "arguments": case["arguments"]},
+                }
+            )
+
+            assert response is not None
+            self.assertNotIn("result", response)
+            self.assertEqual(response["error"]["code"], -32602)
+            self.assertIn(case["message"], response["error"]["message"])
 
     def test_resource_errors_are_json_rpc_errors(self) -> None:
         response = canvas_mcp_server.handle_request(

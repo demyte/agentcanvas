@@ -138,6 +138,10 @@ class CanvasCoreTests(unittest.TestCase):
 
             with self.assertRaises(CanvasValidationError):
                 registry.init_canvas("Bad Thread Init", scope="thread", associated_threads="thread-alpha")
+            self.assertFalse((Path(tmp) / "active" / "bad-thread-init").exists())
+
+            created = registry.init_canvas("Bad Thread Init", scope="thread", associated_threads=["thread-alpha"])
+            self.assertEqual(created["associatedThreads"], ["thread-alpha"])
 
     def test_validation_rejects_stale_storage_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -168,6 +172,35 @@ class CanvasCoreTests(unittest.TestCase):
             self.assertIn("promotions[0].promoted_at must be a non-empty string", validation["errors"])
             with self.assertRaises(CanvasValidationError):
                 registry.promote_canvas("bad-promotions", target="final-report", reference="outputs/report.md")
+
+    def test_promote_rejects_invalid_payload_without_mutating(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Promotion Payload", scope="project")
+            metadata_file = Path(tmp) / "active" / "promotion-payload" / "canvas.json"
+            before = json.loads(metadata_file.read_text(encoding="utf-8"))
+
+            with self.assertRaises(CanvasValidationError):
+                registry.promote_canvas("promotion-payload", target="final-report", reference="")
+            with self.assertRaises(CanvasValidationError):
+                registry.promote_canvas("promotion-payload", target="final-report", reference="outputs/report.md", note=None)
+
+            after = json.loads(metadata_file.read_text(encoding="utf-8"))
+            self.assertEqual(after, before)
+            self.assertTrue(registry.validate_canvas("promotion-payload")["valid"])
+
+    def test_validation_rejects_stale_metadata_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CanvasRegistry(Path(tmp))
+            registry.init_canvas("Folder Name", scope="project")
+            metadata_file = Path(tmp) / "active" / "folder-name" / "canvas.json"
+            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+            metadata["id"] = "different-id"
+            metadata_file.write_text(json.dumps(metadata), encoding="utf-8")
+
+            validation = registry.validate_canvas("folder-name")
+            self.assertFalse(validation["valid"])
+            self.assertIn("id must match the canvas directory", validation["errors"])
 
     def test_associate_thread_updates_existing_canvas_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

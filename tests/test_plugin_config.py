@@ -5,12 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+import argparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import smoke_mcp  # noqa: E402
+import run_scenarios  # noqa: E402
 
 
 class PluginConfigTests(unittest.TestCase):
@@ -35,6 +37,23 @@ class PluginConfigTests(unittest.TestCase):
                 self.assertEqual(smoke_mcp.latest_installed_plugin("0.1.0+new"), expected)
                 with self.assertRaises(smoke_mcp.SmokeFailure):
                     smoke_mcp.latest_installed_plugin("0.1.0+missing")
+            finally:
+                smoke_mcp.DEFAULT_CACHE_ROOT = original
+
+    def test_scenarios_select_exact_installed_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_root = Path(tmp)
+            self.write_plugin_root(cache_root / "0.1.0+z-stale", "0.1.0+z-stale")
+            expected = self.write_plugin_root(cache_root / "0.1.0+current", "0.1.0+current")
+            original = smoke_mcp.DEFAULT_CACHE_ROOT
+            try:
+                smoke_mcp.DEFAULT_CACHE_ROOT = cache_root
+                args = argparse.Namespace(
+                    installed=True,
+                    plugin_root="",
+                    expected_version="0.1.0+current",
+                )
+                self.assertEqual(run_scenarios.resolve_plugin_root(args), expected)
             finally:
                 smoke_mcp.DEFAULT_CACHE_ROOT = original
 

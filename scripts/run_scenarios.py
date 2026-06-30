@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from smoke_mcp import McpClient, SmokeFailure, latest_installed_plugin, server_config, tool_payload
+from smoke_mcp import McpClient, SmokeFailure, plugin_root as resolve_plugin_root, server_config, tool_payload
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1210,17 +1210,13 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Canvas MCP scenario validation and render a browser report.")
-    parser.add_argument("--installed", action="store_true", help="Use the latest installed personal plugin cache.")
+    parser.add_argument("--installed", action="store_true", help="Use the installed personal plugin cache matching the source manifest.")
     parser.add_argument("--plugin-root", default="", help="Plugin root to test.")
+    parser.add_argument("--expected-version", default="", help="Expected installed plugin version. Defaults to source manifest.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Scenario output directory.")
     args = parser.parse_args()
 
-    if args.plugin_root:
-        plugin_root = Path(args.plugin_root).expanduser().resolve()
-    elif args.installed:
-        plugin_root = latest_installed_plugin().resolve()
-    else:
-        plugin_root = ROOT
+    plugin_root = resolve_plugin_root(args).resolve()
 
     summary = run(plugin_root, args.output.resolve())
     print(json.dumps(summary, indent=2))

@@ -106,6 +106,12 @@ def validate_non_empty_string_list(value: Any, field_name: str, *, allow_missing
     return value
 
 
+def validate_non_empty_string(value: Any, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise CanvasValidationError(f"{field_name} must be a non-empty string")
+    return value
+
+
 def validate_promotions(value: Any) -> None:
     if not isinstance(value, list):
         raise CanvasValidationError("promotions must be an array of promotion records")
@@ -172,10 +178,14 @@ class CanvasRegistry:
         if canvas_dir.exists() or archived_dir.exists():
             raise CanvasValidationError(f"Canvas already exists: {normalized_id}")
 
-        canvas_dir.mkdir(parents=True)
         now = utc_now()
         state_files = ["state.json", "notes.md"]
         associated_thread_ids = coerce_thread_ids(associated_threads)
+        human_action_ids = coerce_list(human_actions, DEFAULT_HUMAN_ACTIONS, "human_actions")
+        agent_action_ids = coerce_list(agent_actions, DEFAULT_AGENT_ACTIONS, "agent_actions")
+        promotion_target_ids = coerce_list(promotion_targets, DEFAULT_PROMOTION_TARGETS, "promotion_targets")
+
+        canvas_dir.mkdir(parents=True)
         metadata = {
             "id": normalized_id,
             "kind": "canvas",
@@ -194,10 +204,10 @@ class CanvasRegistry:
             "created_at": now,
             "updated_at": now,
             "state_files": state_files,
-            "human_actions": coerce_list(human_actions, DEFAULT_HUMAN_ACTIONS, "human_actions"),
-            "agent_actions": coerce_list(agent_actions, DEFAULT_AGENT_ACTIONS, "agent_actions"),
+            "human_actions": human_action_ids,
+            "agent_actions": agent_action_ids,
             "shared_state": state_files,
-            "promotion_targets": coerce_list(promotion_targets, DEFAULT_PROMOTION_TARGETS, "promotion_targets"),
+            "promotion_targets": promotion_target_ids,
             "promotions": [],
         }
 
@@ -334,6 +344,17 @@ class CanvasRegistry:
         for field in required:
             if field not in metadata:
                 errors.append(f"Missing metadata field: {field}")
+        metadata_id = metadata.get("id")
+        if not isinstance(metadata_id, str) or not metadata_id.strip():
+            errors.append("id must be a non-empty string")
+        elif metadata_id != canvas_dir.name:
+            errors.append("id must match the canvas directory")
+        else:
+            try:
+                if normalize_canvas_id(metadata_id) != metadata_id:
+                    errors.append("id must be normalized")
+            except CanvasValidationError as exc:
+                errors.append(str(exc))
         if metadata.get("kind") != "canvas":
             errors.append("kind must be 'canvas'")
         if metadata.get("lifecycle") not in LIFECYCLES:
@@ -424,6 +445,10 @@ class CanvasRegistry:
         note: str = "",
     ) -> dict[str, Any]:
         metadata_file = self._metadata_path(canvas_id, "active")
+        target = validate_non_empty_string(target, "target")
+        reference = validate_non_empty_string(reference, "reference")
+        if not isinstance(note, str):
+            raise CanvasValidationError("note must be a string")
         validation = self.validate_canvas(canvas_id, "active")
         if not validation["valid"]:
             raise CanvasValidationError("; ".join(validation["errors"]))
@@ -439,6 +464,7 @@ class CanvasRegistry:
             "note": note,
             "promoted_at": utc_now(),
         }
+        validate_promotions([promotion])
         metadata.setdefault("promotions", []).append(promotion)
         metadata["updated_at"] = promotion["promoted_at"]
         self._write_json(metadata_file, metadata)

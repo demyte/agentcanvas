@@ -11,7 +11,7 @@ from typing import Any, BinaryIO
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from canvas_core import CanvasError, CanvasRegistry, CanvasValidationError  # noqa: E402
+from canvas_core import CanvasError, CanvasRegistry  # noqa: E402
 
 
 STARTUP_PROBE = Path(tempfile.gettempdir()) / "canvas-mcp-startup.jsonl"
@@ -153,6 +153,18 @@ TOOLS: dict[str, dict[str, Any]] = {
 }
 
 
+class ToolArgumentError(ValueError):
+    """Raised when a tools/call request does not match the advertised schema."""
+
+
+def json_rpc_error(request_id: Any, code: int, message: str) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+
+
+def is_valid_request_id(value: Any) -> bool:
+    return isinstance(value, str) or (isinstance(value, int) and not isinstance(value, bool))
+
+
 def registry_from_args(args: dict[str, Any]) -> CanvasRegistry:
     root = args.get("root")
     return CanvasRegistry(Path(root) if root else None)
@@ -160,9 +172,9 @@ def registry_from_args(args: dict[str, Any]) -> CanvasRegistry:
 
 def validate_tool_args(name: str, args: Any) -> dict[str, Any]:
     if name not in TOOLS:
-        raise CanvasValidationError(f"Unknown tool: {name}")
+        raise ToolArgumentError(f"Unknown tool: {name}")
     if not isinstance(args, dict):
-        raise CanvasValidationError("Tool arguments must be an object.")
+        raise ToolArgumentError("Tool arguments must be an object.")
 
     input_schema = TOOLS[name]["inputSchema"]
     properties = input_schema.get("properties", {})
@@ -170,28 +182,28 @@ def validate_tool_args(name: str, args: Any) -> dict[str, Any]:
     unknown = sorted(set(args) - set(properties))
     missing = [field for field in required if field not in args]
     if unknown:
-        raise CanvasValidationError(f"Unknown argument(s) for {name}: {', '.join(unknown)}")
+        raise ToolArgumentError(f"Unknown argument(s) for {name}: {', '.join(unknown)}")
     if missing:
-        raise CanvasValidationError(f"Missing required argument(s) for {name}: {', '.join(missing)}")
+        raise ToolArgumentError(f"Missing required argument(s) for {name}: {', '.join(missing)}")
 
     for field, value in args.items():
         spec = properties[field]
         expected_type = spec.get("type")
         if expected_type == "string":
             if not isinstance(value, str):
-                raise CanvasValidationError(f"{field} must be a string.")
+                raise ToolArgumentError(f"{field} must be a string.")
             enum = spec.get("enum")
             if enum and value not in enum:
-                raise CanvasValidationError(f"{field} must be one of {enum}.")
+                raise ToolArgumentError(f"{field} must be one of {enum}.")
         elif expected_type == "object":
             if not isinstance(value, dict):
-                raise CanvasValidationError(f"{field} must be an object.")
+                raise ToolArgumentError(f"{field} must be an object.")
         elif expected_type == "array":
             if not isinstance(value, list):
-                raise CanvasValidationError(f"{field} must be an array.")
+                raise ToolArgumentError(f"{field} must be an array.")
             item_type = spec.get("items", {}).get("type")
             if item_type == "string" and not all(isinstance(item, str) for item in value):
-                raise CanvasValidationError(f"{field} must be an array of strings.")
+                raise ToolArgumentError(f"{field} must be an array of strings.")
     return args
 
 
@@ -207,9 +219,11 @@ def as_tool_result(data: Any, is_error: bool = False) -> dict[str, Any]:
     }
 
 
-def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
+def call_tool(name: Any, args: Any) -> dict[str, Any]:
+    if not isinstance(name, str) or not name:
+        raise ToolArgumentError("Tool name must be a non-empty string.")
     if name not in TOOLS:
-        return as_tool_result({"error": {"type": "UnknownTool", "message": f"Unknown tool: {name}"}}, True)
+        raise ToolArgumentError(f"Unknown tool: {name}")
     args = validate_tool_args(name, args)
     registry = registry_from_args(args)
     if name == "canvas_init":
@@ -303,7 +317,6 @@ def read_resource(uri: str) -> dict[str, Any]:
 def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
     method = message.get("method")
     request_id = message.get("id")
-    params = message.get("params") or {}
     is_notification = "id" not in message
 
     if method is None:
@@ -312,6 +325,13 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
     if is_notification:
         write_probe(TRAFFIC_PROBE, {"event": "ignored_notification", "method": method})
         return None
+    if not is_valid_request_id(request_id):
+        return json_rpc_error(None, -32600, "Invalid Request: id must be a string or integer.")
+
+    raw_params = message.get("params", {})
+    if not isinstance(raw_params, dict):
+        return json_rpc_error(request_id, -32602, "Invalid params: params must be an object.")
+    params = raw_params
 
     try:
         if method == "initialize":
@@ -334,7 +354,10 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
             }
         elif method == "tools/call":
             try:
-                result = call_tool(params.get("name", ""), params.get("arguments") or {})
+                arguments = params["arguments"] if "arguments" in params else {}
+                result = call_tool(params.get("name"), arguments)
+            except ToolArgumentError as exc:
+                return json_rpc_error(request_id, -32602, str(exc))
             except CanvasError as exc:
                 result = as_tool_result(
                     {"error": {"type": exc.__class__.__name__, "message": str(exc), "recoverable": True}},
@@ -346,30 +369,14 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
             try:
                 result = read_resource(params.get("uri", ""))
             except CanvasError as exc:
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32000, "message": str(exc)},
-                }
+                return json_rpc_error(request_id, -32000, str(exc))
         else:
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {"code": -32601, "message": f"Method not found: {method}"},
-            }
+            return json_rpc_error(request_id, -32601, f"Method not found: {method}")
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
     except CanvasError as exc:
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {"code": -32000, "message": str(exc)},
-        }
+        return json_rpc_error(request_id, -32000, str(exc))
     except Exception as exc:  # noqa: BLE001 - convert unknown failures into JSON-RPC errors.
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {"code": -32603, "message": str(exc)},
-        }
+        return json_rpc_error(request_id, -32603, str(exc))
 
 
 def read_message(stream: BinaryIO) -> dict[str, Any] | None:
