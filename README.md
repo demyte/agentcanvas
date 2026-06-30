@@ -2,175 +2,283 @@
 
 Canvas is a local Codex plugin for semi-persistent workspaces.
 
-A canvas is more durable than scratch files and less authoritative than project memory. It gives Codex a stable place to track state, notes, actions, and promotion targets across turns without silently committing files into a repo or project.
+It gives Codex a stable place to keep working notes, structured state, browser review surfaces, and promotion records without silently writing those artifacts into the repository or project you are working on.
 
-## Layout
+Use a canvas when a task is too substantial for scratch files, but not ready to become durable project memory, documentation, dashboard state, or committed source.
+
+## Why Use It
+
+Canvas is useful for:
+
+- code reviews and architecture investigations
+- research briefs that need to survive across turns
+- planning boards and decision logs
+- local dashboards for project or household operations
+- interactive review surfaces built as static HTML
+- work that may later be promoted into docs, memory, issues, PR comments, reports, or dashboards
+
+The important distinction is authority:
 
 ```text
-.codex-plugin/plugin.json  # Codex plugin manifest
-.mcp.json                  # MCP server configuration
-skills/canvas/SKILL.md     # Codex skill instructions
-scripts/                   # CLI and support scripts
-src/canvas/                # Core implementation
-tests/                     # Automated tests
+scratch
+  Temporary execution files. Safe to delete.
+
+canvas
+  Semi-persistent working state. Useful across turns or days, but not authoritative.
+
+project truth
+  Durable state: repo files, project docs, project memory, dashboards, automation rules.
+```
+
+A canvas can inform durable state, but it does not become durable state until you explicitly promote it.
+
+## What It Creates
+
+Each canvas is a folder with a small, predictable file set:
+
+```text
+canvas.json       # metadata, scope, lifecycle, capabilities, promotion records
+state.json        # structured working state
+notes.md          # readable working notes
+README.md         # orientation for humans and agents
+canvas.html       # optional exported browser surface
+canvas-data.js    # optional data sidecar for canvas.html
+```
+
+The default storage root is:
+
+```text
+~/.agents/canvas
+```
+
+On Windows this is normally:
+
+```text
+C:\Users\<you>\.agents\canvas
+```
+
+The plugin owns the concrete path layout. Codex should use the `storage_path`, `html_path`, and `data_path` returned by the MCP tools instead of guessing paths.
+
+## Using It In Codex
+
+After the plugin is installed, ask Codex for a canvas directly:
+
+```text
+Create a canvas for this review.
+```
+
+```text
+Use /canvas to track this investigation.
+```
+
+```text
+List my active canvases.
+```
+
+```text
+Export this canvas to HTML so I can inspect it.
+```
+
+The bundled `canvas` skill tells Codex to defer creation, updates, validation, archival, promotion records, and HTML export to the Canvas MCP tools.
+
+## MCP Tools
+
+Canvas exposes these MCP tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `canvas_init` | Create a new canvas. |
+| `canvas_list` | List canvases, optionally by lifecycle or associated thread. |
+| `canvas_get` | Read canvas metadata. |
+| `canvas_update_state` | Shallow-merge structured updates into `state.json`. |
+| `canvas_validate` | Validate a canvas folder and metadata. |
+| `canvas_archive` | Move an active canvas to archived lifecycle. |
+| `canvas_associate_thread` | Attach another Codex thread id to a canvas. |
+| `canvas_promote` | Record that canvas output was explicitly promoted somewhere durable. |
+| `canvas_export_html` | Export a static `canvas.html` browser surface. |
+
+Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter `canvas_list` by `threadId`.
+
+## CLI Usage
+
+The local CLI is useful for testing, inspection, and direct operations:
+
+```powershell
+python scripts\canvas.py --help
+```
+
+Create a repo-scoped canvas:
+
+```powershell
+python scripts\canvas.py init review-pr-123 `
+  --scope repo `
+  --anchor D:\Projects\my-repo `
+  --title "PR 123 Review" `
+  --purpose "Track review findings and follow-up validation."
+```
+
+Create a thread-scoped canvas:
+
+```powershell
+python scripts\canvas.py init thread-brief `
+  --scope thread `
+  --associated-thread <thread-id>
+```
+
+List canvases associated with a thread:
+
+```powershell
+python scripts\canvas.py list --thread-id <thread-id>
+```
+
+Update structured state:
+
+```powershell
+python scripts\canvas.py update-state review-pr-123 '{"status":"reviewing"}'
+```
+
+Export a browser surface:
+
+```powershell
+python scripts\canvas.py export-html review-pr-123
+```
+
+Archive when finished:
+
+```powershell
+python scripts\canvas.py archive review-pr-123
+```
+
+## Browser Surfaces
+
+Canvas exports static HTML pages on disk. The HTML file is copied from the checked-in template at:
+
+```text
+templates/canvas-viewer.html
+```
+
+Canvas-specific data is written beside it as `canvas-data.js`. The export is a review surface for working state, not a promotion into durable project state.
+
+For richer local surfaces, prefer the lightest option that works:
+
+```text
+Default
+  Static HTML template plus local sidecar data files.
+
+Interactive static page
+  Static HTML, JavaScript, and CDN libraries such as Chart.js, Mermaid,
+  SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet,
+  or FullCalendar.
+
+Complex static app
+  Vite + React + TypeScript + Tailwind + shadcn/ui.
+
+Server or routing needed
+  Next.js + Tailwind + shadcn/ui only when server behavior, API routes,
+  auth, or multi-route app structure is genuinely needed.
+```
+
+## Promotion
+
+Promotion means copying, summarizing, or integrating canvas output into a durable destination by explicit request.
+
+Examples include:
+
+- repo documentation
+- project memory
+- project dashboard or catalog entry
+- issue or PR comment
+- source, test, or docs changes
+- final report
+
+`canvas_promote` records the promotion target and reference. It does not perform arbitrary writes into the destination on its own.
+
+## Configuration
+
+Canvas uses Python on the path:
+
+```text
+python ./src/canvas_mcp_server.py
+```
+
+The plugin manifest is:
+
+```text
+.codex-plugin/plugin.json
+```
+
+The MCP server config is:
+
+```text
+.mcp.json
+```
+
+You can override the canvas storage root with `CANVAS_ROOT` or the CLI/MCP `root` argument:
+
+```powershell
+$env:CANVAS_ROOT = "D:\CanvasTest"
+python scripts\canvas.py list
+```
+
+## Install Locally
+
+This repository is intended to be installed as a local Codex plugin.
+
+From the repo root:
+
+```powershell
+codex plugin add canvas@personal --json
+```
+
+Then confirm the installed plugin:
+
+```powershell
+codex plugin list --json
 ```
 
 ## Development
 
-Run tests:
+Run unit tests:
 
 ```powershell
 python -m unittest discover -s tests
 ```
 
-Run full validation:
+Run full source validation:
 
 ```powershell
 python scripts\validate.py
 ```
 
-Run full validation plus the installed personal plugin cache smoke:
+Run validation with the installed plugin cache:
 
 ```powershell
 python scripts\validate.py --installed
 ```
 
-Run the full validation plus the fifteen-scenario MCP/browser-surface suite:
+Run the full scenario suite:
 
 ```powershell
 python scripts\validate.py --scenarios
 python scripts\validate.py --installed --scenarios
 ```
 
-Run only the MCP transport/lifecycle smoke:
-
-```powershell
-python scripts\smoke_mcp.py
-python scripts\smoke_mcp.py --installed
-```
-
-Run the scenario suite directly:
-
-```powershell
-python scripts\run_scenarios.py
-python scripts\run_scenarios.py --installed
-```
-
-The scenario suite writes a local browser report to:
+The scenario suite writes a local report to:
 
 ```text
 .canvas-test-output\report.html
 ```
 
-Run CLI locally:
+The validation stack checks Python compilation, unit tests, MCP transport behavior, source and installed plugin startup, the plugin manifest, and fifteen end-to-end scenarios.
 
-```powershell
-python scripts\canvas.py --help
-```
-
-Thread-associated canvases:
-
-```powershell
-python scripts\canvas.py init thread-brief --scope thread --associated-thread <thread-id>
-python scripts\canvas.py associate-thread thread-brief <another-thread-id>
-python scripts\canvas.py list --thread-id <thread-id>
-```
-
-The MCP equivalents are `canvas_init` with `associatedThreads`, `canvas_associate_thread` with `threadId`, and `canvas_list` with `threadId`.
-
-## Storage
-
-Path ownership is split deliberately:
-
-- The skill owns the policy: canvases are user-level working artifacts, outside transient Codex session folders and outside repo roots unless explicitly requested.
-- The MCP owns concrete paths: default root, exact layout, collision rules, lifecycle transitions, migrations, and `canvas.json` placement.
-
-The current MCP default root is:
+## Repository Layout
 
 ```text
-C:\Users\james\.agents\canvas\
+.codex-plugin/plugin.json  # Codex plugin manifest
+.mcp.json                  # MCP server configuration
+skills/canvas/SKILL.md     # Codex skill instructions
+src/                       # Core registry, CLI, and MCP server
+scripts/                   # CLI wrapper and validation helpers
+templates/                 # Static browser surface template
+tests/                     # Automated tests
 ```
-
-Override this with `CANVAS_ROOT` or the CLI/MCP `root` argument when a test or workspace needs a different root. Callers should treat the returned `storage_path`, `html_path`, and `data_path` values as authoritative rather than assuming the layout.
-
-## Codex Connection
-
-The plugin manifest is at:
-
-```text
-.codex-plugin/plugin.json
-```
-
-The MCP server config is at:
-
-```text
-.mcp.json
-```
-
-The MCP server entry point is:
-
-```text
-src/canvas_mcp_server.py
-```
-
-The plugin MCP config starts the server relative to the installed plugin root:
-
-```text
-python ./src/canvas_mcp_server.py
-```
-
-This repo is ready to be added to a local Codex plugin marketplace. The current build does not modify any global Codex marketplace files automatically.
-
-## Testing Strategy
-
-The automated checks are layered:
-
-- Unit tests cover the registry, CLI, plugin config, MCP methods, error handling, and probes.
-- `scripts\smoke_mcp.py` starts the MCP server through the plugin `.mcp.json` command and uses Codex-compatible newline JSON-RPC over stdio.
-- `scripts\run_scenarios.py` drives fifteen end-to-end MCP scenarios and renders HTML surfaces for browser validation.
-- `scripts\validate.py` runs compile checks, unit tests, source MCP smoke, optional scenario validation, and plugin manifest validation.
-- `scripts\validate.py --installed` additionally verifies the latest installed `canvas@personal` plugin cache.
-
-Fresh Codex thread smoke tests are still useful after reinstalling a cachebusted plugin, but the source and installed MCP smoke scripts catch the transport and lifecycle failures locally before that step.
-
-## Browser Surfaces
-
-Canvas can export any active or archived canvas to a deterministic static HTML file:
-
-```powershell
-python scripts\canvas.py export-html <canvas-id>
-```
-
-The MCP equivalent is `canvas_export_html`. The HTML export is a review surface for the current working artifact; it does not promote canvas content into durable project state by itself.
-
-The exported `canvas.html` is copied from the checked-in disk template at `templates\canvas-viewer.html`. Export does not build HTML with Python string templates. Canvas-specific state is written beside it as `canvas-data.js`, and the page reads that local sidecar file in the browser.
-
-## Surface Escalation
-
-Use the lightest browser surface that fits the workflow:
-
-```text
-Default
-  Checked-in static HTML template plus local sidecar data files.
-
-Interactive but simple
-  Static HTML plus vanilla JavaScript and CDN libraries such as Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, or FullCalendar.
-
-Complex canvas app
-  Vite + React + TypeScript + Tailwind + shadcn/ui.
-
-Server/routing needed
-  Next.js + Tailwind + shadcn/ui only when the canvas genuinely needs server behavior, multi-route app structure, API routes, auth, or similar features.
-```
-
-Do not use Next.js as the default local canvas framework. Prefer Vite + React when a static HTML template becomes too cramped but the result can still build to static files.
-
-## Custom Capabilities
-
-Canvas metadata can carry domain-specific actions and promotion targets. With the CLI, pass repeated values while creating a canvas:
-
-```powershell
-python scripts\canvas.py init incident-board --scope project --human-action declare_severity --agent-action summarize_timeline --promotion-target post-incident-report
-```
-
-The MCP `canvas_init` tool accepts matching `human_actions`, `agent_actions`, and `promotion_targets` arrays.
