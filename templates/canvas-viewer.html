@@ -4,48 +4,444 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Canvas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="./canvas-data.js"></script>
+  <style>
+    :root {
+      --paper: #f7f8f3;
+      --surface: #ffffff;
+      --ink: #17201c;
+      --muted: #657068;
+      --line: #d5dbd1;
+      --line-strong: #aeb9ad;
+      --blueprint: #155e75;
+      --blueprint-soft: #e6f3f6;
+      --moss: #2f6f4e;
+      --moss-soft: #e9f4ed;
+      --signal: #b45309;
+      --signal-soft: #fff2d9;
+      --danger: #b42318;
+      --danger-soft: #fee4df;
+      --code: #111827;
+      --shadow: 0 18px 50px rgba(23, 32, 28, 0.08);
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(21, 94, 117, 0.08) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(21, 94, 117, 0.06) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      color: var(--ink);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(21, 94, 117, 0.35);
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      gap: 0;
+      min-height: 100vh;
+    }
+
+    .spine {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      min-height: 100vh;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(14px);
+      padding: 24px 20px;
+    }
+
+    .spine-label {
+      margin: 0 0 18px;
+      color: var(--blueprint);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(1.7rem, 4vw, 3.2rem);
+      font-weight: 760;
+      line-height: 0.97;
+      max-width: 12ch;
+      overflow-wrap: anywhere;
+    }
+
+    .purpose {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .status-stack {
+      display: grid;
+      gap: 8px;
+      margin-top: 28px;
+    }
+
+    .chip {
+      display: inline-flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      line-height: 1.2;
+      box-shadow: 0 1px 0 rgba(23, 32, 28, 0.05);
+    }
+
+    .chip::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--blueprint);
+    }
+
+    .chip.green::before {
+      background: var(--moss);
+    }
+
+    .chip.amber::before {
+      background: var(--signal);
+    }
+
+    .chip.red::before {
+      background: var(--danger);
+    }
+
+    .workspace {
+      min-width: 0;
+      padding: 22px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .tab {
+      border: 1px solid var(--line-strong);
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--ink);
+      cursor: pointer;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+      font-weight: 690;
+      line-height: 1;
+    }
+
+    .tab.is-active {
+      border-color: var(--blueprint);
+      background: var(--blueprint);
+      color: white;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      min-width: 220px;
+    }
+
+    .filter {
+      min-width: min(320px, 100%);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 9px 11px;
+      font-size: 0.9rem;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      padding: 9px 11px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .toggle input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blueprint);
+    }
+
+    .panel {
+      margin-top: 18px;
+    }
+
+    .panel.hidden,
+    .canvas-card.hidden {
+      display: none;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .canvas-card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 0 14px;
+      color: var(--blueprint);
+      font-size: 0.74rem;
+      font-weight: 820;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .card-body {
+      padding: 14px;
+      color: var(--ink);
+      font-size: 0.91rem;
+      line-height: 1.55;
+    }
+
+    .item-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .item-list li {
+      border-left: 3px solid var(--blueprint);
+      background: var(--blueprint-soft);
+      padding: 9px 10px;
+    }
+
+    .empty {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    pre,
+    code {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .raw-block {
+      max-width: 100%;
+      margin: 0;
+      overflow: auto;
+      border: 1px solid rgba(21, 94, 117, 0.18);
+      background: #f9fbfc;
+      color: var(--code);
+      padding: 12px;
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    .wrap {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .nowrap {
+      white-space: pre;
+    }
+
+    .validation-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .signal {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 7px 9px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 680;
+    }
+
+    .signal::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--moss);
+    }
+
+    .signal.invalid::before {
+      background: var(--danger);
+    }
+
+    .notes-panel {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .spine {
+        position: static;
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .title {
+        max-width: none;
+      }
+
+      .toolbar,
+      .overview-grid,
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        justify-content: stretch;
+      }
+
+      .filter,
+      .toggle {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .canvas-card,
+      .tab,
+      .chip {
+        transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+      }
+
+      .canvas-card:hover {
+        border-color: var(--line-strong);
+        transform: translateY(-1px);
+      }
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-950">
-  <main class="mx-auto max-w-7xl px-5 py-6 sm:px-8">
-    <header class="border-b border-slate-200 pb-5">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div class="min-w-0">
-          <h1 id="title" class="text-3xl font-semibold tracking-normal text-slate-950">Canvas</h1>
-          <p id="purpose" class="mt-2 max-w-3xl text-sm leading-6 text-slate-600"></p>
-          <div id="chips" class="mt-4 flex flex-wrap gap-2"></div>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="overview">Overview</button>
-          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="state">State</button>
-          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="notes">Notes</button>
-          <button class="tab rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" data-tab="raw">Raw</button>
-        </div>
-      </div>
-    </header>
+<body>
+  <main class="shell">
+    <aside class="spine">
+      <p class="spine-label">Canvas surface</p>
+      <h1 id="title" class="title">Canvas</h1>
+      <p id="purpose" class="purpose"></p>
+      <div id="chips" class="status-stack"></div>
+    </aside>
 
-    <section class="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-      <label class="block">
-        <span class="sr-only">Filter canvas content</span>
-        <input id="filter" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500" placeholder="Filter visible canvas content">
-      </label>
-      <label class="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-        <input id="wrap-toggle" type="checkbox" class="h-4 w-4" checked>
-        Wrap raw text
-      </label>
+    <section class="workspace" aria-label="Canvas workspace">
+      <header class="toolbar">
+        <nav class="tabs" aria-label="Canvas views">
+          <button class="tab" data-tab="overview" type="button">Overview</button>
+          <button class="tab" data-tab="state" type="button">State</button>
+          <button class="tab" data-tab="notes" type="button">Notes</button>
+          <button class="tab" data-tab="raw" type="button">Raw</button>
+        </nav>
+        <div class="controls">
+          <label>
+            <span class="sr-only">Filter canvas content</span>
+            <input id="filter" class="filter" placeholder="Filter visible content">
+          </label>
+          <label class="toggle">
+            <input id="wrap-toggle" type="checkbox" checked>
+            Wrap raw text
+          </label>
+        </div>
+      </header>
+
+      <section id="overview" class="panel overview-grid"></section>
+      <section id="state" class="panel hidden"></section>
+      <section id="notes" class="panel hidden"></section>
+      <section id="raw" class="panel hidden"></section>
     </section>
-
-    <section id="overview" class="panel mt-5 grid gap-4 lg:grid-cols-3"></section>
-    <section id="state" class="panel mt-5 hidden"></section>
-    <section id="notes" class="panel mt-5 hidden"></section>
-    <section id="raw" class="panel mt-5 hidden"></section>
   </main>
 
   <template id="card-template">
-    <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 class="card-title text-base font-semibold tracking-normal text-slate-950"></h2>
-      <div class="card-body mt-3 text-sm leading-6 text-slate-700"></div>
+    <article class="canvas-card">
+      <h2 class="card-title"></h2>
+      <div class="card-body"></div>
     </article>
   </template>
 
@@ -65,13 +461,8 @@
     const pretty = (value) => JSON.stringify(value ?? {}, null, 2);
 
     function chip(text, tone = "slate") {
-      const tones = {
-        slate: "border-slate-300 bg-white text-slate-700",
-        green: "border-emerald-200 bg-emerald-50 text-emerald-800",
-        amber: "border-amber-200 bg-amber-50 text-amber-800",
-        red: "border-red-200 bg-red-50 text-red-800",
-      };
-      return `<span class="rounded-md border px-2 py-1 text-xs ${tones[tone] || tones.slate}">${escapeHtml(text)}</span>`;
+      const toneClass = tone === "green" ? "green" : tone === "amber" ? "amber" : tone === "red" ? "red" : "";
+      return `<span class="chip ${toneClass}">${escapeHtml(text)}</span>`;
     }
 
     function card(title, body) {
@@ -83,19 +474,32 @@
     }
 
     function list(items) {
-      if (!Array.isArray(items) || items.length === 0) return "<p class=\"text-slate-500\">None recorded.</p>";
-      return `<ul class="space-y-2">${items.map((item) => `<li class="rounded-md bg-slate-50 p-2"><code class="text-xs">${escapeHtml(typeof item === "string" ? item : pretty(item))}</code></li>`).join("")}</ul>`;
+      if (!Array.isArray(items) || items.length === 0) {
+        return '<p class="empty">None recorded.</p>';
+      }
+      return `<ul class="item-list">${items.map((item) => `
+        <li><code>${escapeHtml(typeof item === "string" ? item : pretty(item))}</code></li>
+      `).join("")}</ul>`;
+    }
+
+    function raw(value) {
+      return `<pre class="raw-block wrap">${escapeHtml(pretty(value))}</pre>`;
     }
 
     function renderOverview() {
       const overview = document.querySelector("#overview");
       overview.replaceChildren(
-        card("Anchor", `<pre class="overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(metadata.anchor || "")}</pre>`),
-        card("Human Actions", list(metadata.human_actions)),
-        card("Agent Actions", list(metadata.agent_actions)),
-        card("Promotion Targets", list(metadata.promotion_targets)),
+        card("Anchor", `<pre class="raw-block wrap">${escapeHtml(metadata.anchor || "")}</pre>`),
+        card("Human actions", list(metadata.human_actions)),
+        card("Agent actions", list(metadata.agent_actions)),
+        card("Promotion targets", list(metadata.promotion_targets)),
         card("Promotions", list(metadata.promotions)),
-        card("Validation", `<p>${validation.valid ? chip("valid", "green") : chip("invalid", "red")}</p><pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(validation))}</pre>`)
+        card("Validation", `
+          <div class="validation-line">
+            <span class="signal ${validation.valid ? "" : "invalid"}">${validation.valid ? "valid" : "invalid"}</span>
+          </div>
+          ${raw(validation)}
+        `)
       );
     }
 
@@ -103,33 +507,35 @@
       const statePanel = document.querySelector("#state");
       const keys = Object.keys(state).filter((key) => key !== "updated_at");
       if (keys.length === 0) {
-        statePanel.innerHTML = `<article class="rounded-lg border border-slate-200 bg-white p-4">No state recorded.</article>`;
+        statePanel.innerHTML = '<article class="notes-panel"><div class="card-body">No state recorded.</div></article>';
         return;
       }
-      statePanel.innerHTML = `<div class="grid gap-4 lg:grid-cols-2">${keys.map((key) => `
-        <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-base font-semibold tracking-normal">${escapeHtml(key)}</h2>
-          <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(state[key]))}</pre>
+      statePanel.innerHTML = `<div class="two-column">${keys.map((key) => `
+        <article class="canvas-card">
+          <h2 class="card-title">${escapeHtml(key)}</h2>
+          <div class="card-body">${raw(state[key])}</div>
         </article>
       `).join("")}</div>`;
     }
 
     function renderNotes() {
       document.querySelector("#notes").innerHTML = `
-        <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-base font-semibold tracking-normal">Notes</h2>
-          <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-sm leading-6">${escapeHtml(notes)}</pre>
+        <article class="notes-panel">
+          <h2 class="card-title">Notes</h2>
+          <div class="card-body">
+            <pre class="raw-block wrap">${escapeHtml(notes)}</pre>
+          </div>
         </article>
       `;
     }
 
     function renderRaw() {
       document.querySelector("#raw").innerHTML = `
-        <div class="grid gap-4 lg:grid-cols-2">
+        <div class="two-column">
           ${["metadata", "state", "validation"].map((name) => `
-            <article class="canvas-card rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 class="text-base font-semibold tracking-normal">${name}</h2>
-              <pre class="raw-block mt-3 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs">${escapeHtml(pretty(canvasData[name]))}</pre>
+            <article class="canvas-card">
+              <h2 class="card-title">${name}</h2>
+              <div class="card-body">${raw(canvasData[name])}</div>
             </article>
           `).join("")}
         </div>
@@ -140,9 +546,7 @@
       document.querySelectorAll(".panel").forEach((panel) => panel.classList.add("hidden"));
       document.querySelector(`#${tabName}`).classList.remove("hidden");
       document.querySelectorAll(".tab").forEach((button) => {
-        const active = button.dataset.tab === tabName;
-        button.classList.toggle("bg-slate-900", active);
-        button.classList.toggle("text-white", active);
+        button.classList.toggle("is-active", button.dataset.tab === tabName);
       });
     }
 
@@ -154,11 +558,10 @@
     }
 
     function applyWrap() {
-      const wrap = document.querySelector("#wrap-toggle").checked;
+      const wrapText = document.querySelector("#wrap-toggle").checked;
       document.querySelectorAll(".raw-block").forEach((block) => {
-        block.classList.toggle("whitespace-pre-wrap", wrap);
-        block.classList.toggle("break-words", wrap);
-        block.classList.toggle("whitespace-pre", !wrap);
+        block.classList.toggle("wrap", wrapText);
+        block.classList.toggle("nowrap", !wrapText);
       });
     }
 
