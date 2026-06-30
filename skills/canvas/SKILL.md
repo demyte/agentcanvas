@@ -1,6 +1,6 @@
 ---
 name: canvas
-description: "Use this whenever the user asks for a canvas, workspace, shared board, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas equivalent in Codex. This skill creates semi-persistent local work surfaces: more durable than scratch files, less authoritative than project memory, and promoted only when explicitly requested."
+description: "Use this whenever the user asks for a canvas, workspace, shared board, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas equivalent in Codex. Use Canvas MCP tools such as canvas_init, canvas_list, canvas_get, canvas_update_state, canvas_validate, canvas_export_html, canvas_archive, canvas_associate_thread, and canvas_promote."
 ---
 
 # Canvas
@@ -11,7 +11,9 @@ A canvas is a working artifact for an active investigation, plan, review, dashbo
 
 Assume the Canvas MCP tools are available. Defer canvas creation, reads, updates, validation, archival, promotion records, and HTML export to those tools.
 
-If the MCP tools are not exposed in the current thread, do not hand-create canvas metadata or invent the storage layout. Use the installed Canvas CLI only as a compatibility path for the same operations, and say clearly that MCP tools were not exposed. Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or narrowly repairing a failed operation.
+If the MCP tools are not visible, use tool discovery with the exact query `mcp__canvas canvas_init canvas_list canvas_get canvas_update_state canvas_validate canvas_export_html canvas_archive canvas_associate_thread canvas_promote`. Do not declare the MCP unavailable after only searching for generic terms such as "canvas" or "canvas tool".
+
+If the MCP tools are still not exposed after that exact discovery query, do not hand-create canvas metadata or invent the storage layout. Use the installed Canvas CLI only as a compatibility path for the same operations, and say clearly that MCP tools were not exposed. Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or narrowly repairing a failed operation.
 
 ## Model
 

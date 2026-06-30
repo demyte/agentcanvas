@@ -32,7 +32,9 @@ class PluginConfigTests(unittest.TestCase):
     def test_skill_documents_mcp_fallback_and_blank_stub_contract(self) -> None:
         skill = (ROOT / "skills" / "canvas" / "SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn("If the MCP tools are not exposed in the current thread", skill)
+        self.assertIn("If the MCP tools are not visible", skill)
+        self.assertIn("mcp__canvas canvas_init canvas_list canvas_get canvas_update_state canvas_validate canvas_export_html", skill)
+        self.assertIn("Do not declare the MCP unavailable after only searching for generic terms", skill)
         self.assertIn("Use the installed Canvas CLI only as a compatibility path", skill)
         self.assertIn("The shared exported template intentionally has no body", skill)
         self.assertIn("build or update the canvas-specific `canvas.html` body", skill)
