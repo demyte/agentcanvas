@@ -53,7 +53,9 @@ Choose the narrowest useful scope:
 - `thread`: short-lived work intentionally tied to this one conversation.
 - `user`: cross-project dashboards, reusable templates, user-level registries.
 
-Prefer `repo` or `project` when a real anchor exists. Use `thread` only when no broader anchor fits.
+Prefer `repo` or `project` when a real anchor exists. Use `user` for personal planning, household planning, reusable trackers, and casual "create me a canvas for..." requests when there is no real repo or project folder anchor. Use `thread` only when the user explicitly asks for a thread-scoped canvas or the work is meaningless outside this one conversation.
+
+Do not treat a delegated source thread id or the current Codex thread id as an anchor by itself. Thread identifiers belong in `associatedThreads` only when available and useful; they are not a substitute for a real repo/project anchor.
 
 ## Metadata
 

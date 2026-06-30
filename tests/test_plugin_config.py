@@ -36,6 +36,8 @@ class PluginConfigTests(unittest.TestCase):
         self.assertIn("Use the installed Canvas CLI only as a compatibility path", skill)
         self.assertIn("The exported HTML template intentionally has no body", skill)
         self.assertIn("Do not \"fix\" a blank starter export", skill)
+        self.assertIn("Use `user` for personal planning", skill)
+        self.assertIn("Do not treat a delegated source thread id", skill)
 
     def test_smoke_selects_exact_installed_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
