@@ -157,9 +157,9 @@ Canvas exports static HTML starter pages on disk. The HTML file is copied from t
 templates/canvas-viewer.html
 ```
 
-Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not a designed review surface or a promotion into durable project state.
+Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not the final surface.
 
-Seeing a blank page after `canvas_export_html` is expected. Build a body only when you explicitly want a canvas-specific browser surface.
+For planners, boards, dashboards, trackers, maps, calendars, or artifact workspaces, build the actual canvas-specific body in that canvas folder after export. Keep the shared template blank.
 
 For richer local surfaces, prefer the lightest option that works:
 

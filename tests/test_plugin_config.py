@@ -34,8 +34,9 @@ class PluginConfigTests(unittest.TestCase):
 
         self.assertIn("If the MCP tools are not exposed in the current thread", skill)
         self.assertIn("Use the installed Canvas CLI only as a compatibility path", skill)
-        self.assertIn("The exported HTML template intentionally has no body", skill)
-        self.assertIn("Do not \"fix\" a blank starter export", skill)
+        self.assertIn("The shared exported template intentionally has no body", skill)
+        self.assertIn("build or update the canvas-specific `canvas.html` body", skill)
+        self.assertIn("Do not add generic UI to `templates/canvas-viewer.html`", skill)
         self.assertIn("Use `user` for personal planning", skill)
         self.assertIn("Do not treat a delegated source thread id", skill)
 

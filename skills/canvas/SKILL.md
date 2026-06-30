@@ -120,7 +120,7 @@ Next.js + Tailwind + shadcn/ui
   Only when server behavior, routing, API routes, auth, or similar features are genuinely needed.
 ```
 
-If the `frontend-design` skill is installed and the user explicitly asks to build or materially revise a browser UI, use that skill before designing or editing the UI. Do not treat normal `canvas_export_html` output as a design task by itself.
+If the `frontend-design` skill is installed and the canvas needs a new or materially revised browser UI, use that skill before designing or editing the UI. A request for a planner, board, dashboard, tracker, map, calendar, or other usable visual workspace is enough to justify a canvas-specific UI.
 
 Do not choose Next.js by default for local canvas artifacts.
 
@@ -128,7 +128,7 @@ Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Ma
 
 Static HTML surfaces must be real HTML pages on disk. Start from the checked-in blank template and place local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
 
-Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The exported HTML template intentionally has no body and will render as a blank browser page until a user explicitly asks for a custom surface. Do not "fix" a blank starter export by adding a body, dashboard, or generated UI. Populate the body only when the user explicitly asks to build a canvas-specific surface. The export is a working artifact, not a durable promotion.
+Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body; do not add generic UI to the template. After export, build or update the canvas-specific `canvas.html` body when the request itself implies a usable surface, such as a planner, dashboard, board, tracker, calendar, map, or artifact workspace. The export is a working artifact, not a durable promotion.
 
 ## Promotion
 
@@ -169,10 +169,10 @@ Avoid rebuilding from scratch unless the user asks or the current structure no l
 
 ## Drift Guards
 
-- A blank `canvas.html` from `canvas_export_html` is expected for the default starter template.
-- Do not create a user-facing dashboard, app, or custom HTML body unless the user asks for that surface explicitly.
-- Do not copy bespoke output files from a Codex thread into canvas storage unless the user asks to replace or customize the canvas surface.
-- If the user reacts to a blank starter page ambiguously, clarify that the blank page is expected before changing it.
+- A blank `canvas.html` from `canvas_export_html` is expected only for the shared starter template.
+- For canvas requests that imply an actual working surface, build the canvas-specific body in that canvas folder after export.
+- Do not add generic UI to `templates/canvas-viewer.html`; it must remain a blank creation stub.
+- Do not copy unrelated bespoke output files from a Codex thread into canvas storage. If you create a custom surface, make it the canvas-owned `canvas.html` and keep its data beside it.
 - Keep promotion records separate from presentation changes; a rendered local surface is still not promotion.
 
 ## Archival
