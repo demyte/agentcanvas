@@ -1,6 +1,6 @@
 {
   "name": "canvas",
-  "version": "0.1.0+codex.20260630045300",
+  "version": "0.1.0+codex.20260630051839",
   "description": "Semi-persistent canvas workspaces for Codex.",
   "author": {
     "name": "James Summerton"
@@ -13,7 +13,7 @@
     "developerName": "James Summerton",
     "category": "Productivity",
     "capabilities": [
-      "MCP",
+      "CLI",
       "Filesystem",
       "Workflow"
     ],
@@ -22,6 +22,5 @@
       "List my active canvases.",
       "Validate this canvas."
     ]
-  },
-  "mcpServers": "./.mcp.json"
+  }
 }

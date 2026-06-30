@@ -1,6 +1,6 @@
 ---
 name: canvas
-description: "Use this whenever the user asks for a canvas, workspace, shared board, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas equivalent in Codex. Use Canvas MCP tools such as canvas_init, canvas_list, canvas_get, canvas_update_state, canvas_validate, canvas_export_html, canvas_archive, canvas_associate_thread, and canvas_promote."
+description: "Use this whenever the user asks for a canvas, workspace, shared board, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas equivalent in Codex. Use the bundled Canvas CLI for creation, listing, reads, updates, validation, export, archival, thread association, and promotion records."
 ---
 
 # Canvas
@@ -9,19 +9,42 @@ Use this skill to create and maintain semi-persistent Codex work surfaces.
 
 A canvas is a working artifact for an active investigation, plan, review, dashboard, or decision workflow. It is not scratch, and it is not durable project truth until explicitly promoted.
 
-Assume the Canvas MCP tools are available. Defer canvas creation, reads, updates, validation, archival, promotion records, and HTML export to those tools.
+## CLI Contract
 
-If the MCP tools are not visible, use tool discovery with the exact query `mcp__canvas canvas_init canvas_list canvas_get canvas_update_state canvas_validate canvas_export_html canvas_archive canvas_associate_thread canvas_promote`. Do not declare the MCP unavailable after only searching for generic terms such as "canvas" or "canvas tool".
+Use the bundled Canvas CLI for all canvas operations. Do not use MCP tools for Canvas.
 
-If the MCP tools are still not exposed after that exact discovery query, do not hand-create canvas metadata or invent the storage layout. Use the installed Canvas CLI only as a compatibility path for the same operations, and say clearly that MCP tools were not exposed. Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or narrowly repairing a failed operation.
+Resolve the CLI wrapper relative to this `SKILL.md`:
 
-## MCP Server Lifecycle
+```bash
+python ../../scripts/canvas.py tool <operation> '<json-object>'
+```
 
-For normal canvas work, do not manually start or daemonize the Canvas MCP server. Codex owns MCP startup from the installed plugin manifest and `.mcp.json`; using or discovering the `mcp__canvas` tools is the correct way to start it as needed.
+If that relative path cannot be resolved from the installed skill location, locate the installed `canvas` plugin root and run its `scripts/canvas.py`. Assume `python` is on the path.
 
-Do not manually stop the Canvas MCP server during ordinary canvas creation, updates, validation, export, or archival. If a tool call returns a transient transport error, retry discovery once in the current thread; if it still fails, use the installed CLI compatibility path and report that the MCP transport was not usable.
+Supported operation names:
 
-Manual process cleanup is only for plugin development or reinstall recovery, especially when an old `canvas_mcp_server.py` process is holding a versioned plugin cache folder open. In that case, stop only stale Canvas MCP processes, reinstall the plugin through the normal cachebuster flow, validate the installed plugin, and use a new thread to test the updated tools.
+- `canvas_init`
+- `canvas_list`
+- `canvas_get`
+- `canvas_update_state`
+- `canvas_validate`
+- `canvas_archive`
+- `canvas_associate_thread`
+- `canvas_promote`
+- `canvas_export_html`
+
+Use JSON payloads with the same field names:
+
+```bash
+python ../../scripts/canvas.py tool canvas_init '{"id":"review-board","scope":"repo","anchor":"D:\\Projects\\repo","purpose":"Track review work"}'
+python ../../scripts/canvas.py tool canvas_update_state '{"id":"review-board","updates":{"status":"reviewing"}}'
+python ../../scripts/canvas.py tool canvas_validate '{"id":"review-board"}'
+python ../../scripts/canvas.py tool canvas_export_html '{"id":"review-board"}'
+```
+
+Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout. The CLI owns default storage, exact paths, collision handling, validation, archive movement, and export sidecars. Use returned `storage_path`, `html_path`, and `data_path` as authoritative.
+
+Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or updating canvas-owned notes and custom surfaces after the CLI has created/exported the canvas.
 
 ## Model
 
@@ -40,19 +63,15 @@ Default frame: `Canvas = a working set for an active line of thought.`
 
 ## Storage
 
-Do not choose or construct canvas storage paths in the skill. The MCP owns concrete path knowledge: default root, exact on-disk layout, lifecycle placement, collision handling, migrations, and where `canvas.json` lives.
-
-Policy only: canvases belong in user-level external storage, not transient dated Codex session folders and not repo/project folders unless the user explicitly asks. Use the `storage_path` returned by `canvas_init` or `canvas_get` as authoritative.
+Canvases belong in user-level external storage, not transient dated Codex session folders and not repo/project folders unless the user explicitly asks. Repo/project folders are usually anchors, not storage targets.
 
 Keep the logical anchor separate from storage:
 
 ```text
 scope: repo
-anchor: D:\xpna\main
-storage_path: returned by the MCP
+anchor: D:\Projects\repo
+storage_path: returned by canvas_init or canvas_get
 ```
-
-Repo/project folders are usually anchors, not storage targets. Do not create committable repo-local canvas files unless the user asks or the repo has a clearly ignored local-agent convention.
 
 ## Scope
 
@@ -60,51 +79,26 @@ Choose the narrowest useful scope:
 
 - `repo`: repository, branch, issue, PR, code review, architecture trace, test plan, implementation workflow.
 - `project`: non-repo project folder, household workspace, business process, operational domain.
-- `thread`: short-lived work intentionally tied to this one conversation.
-- `user`: cross-project dashboards, reusable templates, user-level registries.
+- `thread`: work intentionally tied to one conversation.
+- `user`: cross-project dashboards, reusable templates, personal or household planning.
 
-Prefer `repo` or `project` when a real anchor exists. Use `user` for personal planning, household planning, reusable trackers, and casual "create me a canvas for..." requests when there is no real repo or project folder anchor. Use `thread` only when the user explicitly asks for a thread-scoped canvas or the work is meaningless outside this one conversation.
+Prefer `repo` or `project` when a real anchor exists. Use `user` for personal planning, household planning, reusable trackers, and casual "create me a canvas for..." requests when there is no real repo or project folder anchor. Use `thread` only when the user explicitly asks for a thread-scoped canvas or the work is meaningless outside the conversation.
 
-Do not treat a delegated source thread id or the current Codex thread id as an anchor by itself. Thread identifiers belong in `associatedThreads` only when available and useful; they are not a substitute for a real repo/project anchor.
+Do not treat a delegated source thread id or the current Codex thread id as an anchor by itself. Thread identifiers belong in `associatedThreads` only when available and useful.
 
-## Metadata
-
-The MCP maintains the core files:
-
-- `canvas.json`: id, lifecycle, authority, scope, anchor, associatedThreads, timestamps, state files, capabilities, promotion targets.
-- `state.json`: structured shared state.
-- `notes.md`: readable working notes.
-- `README.md`: quick human/agent orientation.
-
-For thread-scoped canvases, pass one or more known thread identifiers as `associatedThreads` to `canvas_init`. Use `canvas_associate_thread` to tie an existing canvas to another thread, and `canvas_list` with `threadId` to find canvases tied to a thread. Populate thread identifiers only when available; leave them empty rather than inventing them.
-
-## Capabilities
-
-Treat a canvas as a shared action surface, not just a folder.
-
-Define concrete:
-
-- `human_actions`: inspect, decide, edit, approve, reject, archive, request promotion.
-- `agent_actions`: refresh state, add/update items, summarize, regenerate surfaces, validate, archive.
-- `shared_state`: files both human and agent can inspect/update.
-- `promotion_targets`: allowed durable destinations.
-
-Pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` to `canvas_init` for shaped workflows. Use defaults only for generic canvases.
-
-## Creation Triage
+## Creation
 
 Before creating a canvas, determine:
 
 1. Purpose: planning, research, review, tracking, editing, dashboarding, artifact generation, or decision support.
 2. Anchor: repo, project, thread, or user.
-3. Lifecycle: active canvas, scratch-only, or durable project state.
-4. Surface: Markdown, Markdown plus JSON, static HTML, or local app.
-5. Capabilities: what the user can do and what Codex can reliably update.
-6. Promotion path: where results may go if explicitly promoted.
+3. Surface: Markdown, Markdown plus JSON, static HTML, or local app.
+4. Capabilities: what the user can do and what Codex can reliably update.
+5. Promotion path: where results may go if explicitly promoted.
 
 If intent is clear, proceed without asking. Ask only when the wrong anchor or storage choice would create meaningful cleanup or confusion.
 
-Create the canvas with `canvas_init`. Do not hand-create the folder or `canvas.json`.
+Create with `canvas_init`. Pass domain-specific `human_actions`, `agent_actions`, and `promotion_targets` for shaped workflows. Use defaults only for generic canvases. For thread-scoped canvases, pass known thread identifiers as `associatedThreads`; use `canvas_associate_thread` to connect an existing canvas to another thread.
 
 ## Surfaces
 
@@ -116,9 +110,6 @@ Markdown
 
 Markdown + JSON
   Repeatedly updated structured state.
-
-Static HTML
-  Browser review surface without a backend.
 
 Static HTML + JS/CDN libraries
   Simple interaction: filters, charts, diagrams, drag/drop, tables, maps, calendars.
@@ -132,13 +123,9 @@ Next.js + Tailwind + shadcn/ui
 
 If the `frontend-design` skill is installed and the canvas needs a new or materially revised browser UI, use that skill before designing or editing the UI. A request for a planner, board, dashboard, tracker, map, calendar, or other usable visual workspace is enough to justify a canvas-specific UI.
 
-Do not choose Next.js by default for local canvas artifacts.
-
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
-Static HTML surfaces must be real HTML pages on disk. Start from the checked-in blank template and place local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
-
-Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body; do not add generic UI to the template. After export, build or update the canvas-specific `canvas.html` body when the request itself implies a usable surface, such as a planner, dashboard, board, tracker, calendar, map, or artifact workspace. The export is a working artifact, not a durable promotion.
+Static HTML surfaces must be real HTML pages on disk. Start with `canvas_export_html`, which creates or refreshes the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
 
 ## Promotion
 
@@ -154,40 +141,21 @@ Promotion examples:
 - final report
 - source/tests/docs changes
 
-When promoting into dashboard/catalog surfaces:
-
-1. Identify the authoritative source first.
-2. Update or generate visible pages only after source state is clear.
-3. Update index/catalog files that make the surface discoverable.
-4. Verify the surface directly when possible.
-
-In non-git workspaces, verify with direct reads, hashes, or page checks instead of `git diff`.
+Use `canvas_promote` to record explicit promotion targets and references. It records the promotion; it does not write arbitrary destination files by itself.
 
 ## Update Loop
 
 When updating an existing canvas:
 
-1. Use `canvas_get` to read the canvas metadata.
+1. Use `canvas_get` to read metadata.
 2. Preserve user edits.
 3. Use `canvas_update_state` for structured state changes.
-4. Inspect or edit returned local files only when notes, README, or custom surfaces need direct file work.
+4. Edit returned local files only when notes, README, or custom surfaces need direct file work.
 5. Use `canvas_validate` after material changes.
 6. Refresh with `canvas_export_html` when browser inspection helps.
 7. Report changed files, storage path, promotion status, and how to continue.
 
 Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.
-
-## Drift Guards
-
-- A blank `canvas.html` from `canvas_export_html` is expected only for the shared starter template.
-- For canvas requests that imply an actual working surface, build the canvas-specific body in that canvas folder after export.
-- Do not add generic UI to `templates/canvas-viewer.html`; it must remain a blank creation stub.
-- Do not copy unrelated bespoke output files from a Codex thread into canvas storage. If you create a custom surface, make it the canvas-owned `canvas.html` and keep its data beside it.
-- Keep promotion records separate from presentation changes; a rendered local surface is still not promotion.
-
-## Archival
-
-When finished, call `canvas_archive`. Do not move folders or edit lifecycle fields manually unless recovering from an MCP failure.
 
 ## Response
 

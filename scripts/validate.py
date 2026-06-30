@@ -18,16 +18,16 @@ def run(command: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Canvas validation checks.")
     parser.add_argument("--installed", action="store_true", help="Also smoke-test the installed personal plugin cache.")
-    parser.add_argument("--scenarios", action="store_true", help="Run the MCP/browser-surface scenario suite.")
+    parser.add_argument("--scenarios", action="store_true", help="Run the CLI/browser-surface scenario suite.")
     args = parser.parse_args()
 
     run([sys.executable, "-m", "compileall", "src", "scripts", "tests"])
     run([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
-    run([sys.executable, "scripts/smoke_mcp.py", "--canvas-id", "validate-source-smoke"])
+    run([sys.executable, "scripts/smoke_cli.py", "--canvas-id", "validate-source-smoke"])
     if args.scenarios:
         run([sys.executable, "scripts/run_scenarios.py"])
     if args.installed:
-        run([sys.executable, "scripts/smoke_mcp.py", "--installed", "--canvas-id", "validate-installed-smoke"])
+        run([sys.executable, "scripts/smoke_cli.py", "--installed", "--canvas-id", "validate-installed-smoke"])
         if args.scenarios:
             run([sys.executable, "scripts/run_scenarios.py", "--installed"])
     if PLUGIN_VALIDATOR.exists():

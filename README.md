@@ -57,7 +57,7 @@ On Windows this is normally:
 C:\Users\<you>\.agents\canvas
 ```
 
-The plugin owns the concrete path layout. Codex should use the `storage_path`, `html_path`, and `data_path` returned by the MCP tools instead of guessing paths.
+The plugin owns the concrete path layout. Codex should use the `storage_path`, `html_path`, and `data_path` returned by the bundled CLI instead of guessing paths.
 
 ## Using It In Codex
 
@@ -79,11 +79,11 @@ List my active canvases.
 Export this canvas to HTML so I can inspect it.
 ```
 
-The bundled `canvas` skill tells Codex to defer creation, updates, validation, archival, promotion records, and HTML export to the Canvas MCP tools.
+The bundled `canvas` skill tells Codex to defer creation, updates, validation, archival, promotion records, and HTML export to the Canvas CLI.
 
-## MCP Tools
+## CLI Operations
 
-Canvas exposes these MCP tools:
+Canvas bundles a Python CLI with tool-compatible operation names:
 
 | Tool | Purpose |
 | --- | --- |
@@ -98,6 +98,14 @@ Canvas exposes these MCP tools:
 | `canvas_export_html` | Export a static `canvas.html` browser surface. |
 
 Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter `canvas_list` by `threadId`.
+
+Run operations through:
+
+```powershell
+python scripts\canvas.py tool canvas_init '{"id":"review-board","scope":"repo","anchor":"D:\\Projects\\repo"}'
+python scripts\canvas.py tool canvas_list '{"lifecycle":"active"}'
+python scripts\canvas.py tool canvas_validate '{"id":"review-board"}'
+```
 
 ## CLI Usage
 
@@ -200,7 +208,7 @@ Examples include:
 Canvas uses Python on the path:
 
 ```text
-python ./src/canvas_mcp_server.py
+python ./scripts/canvas.py
 ```
 
 The plugin manifest is:
@@ -209,13 +217,7 @@ The plugin manifest is:
 .codex-plugin/plugin.json
 ```
 
-The MCP server config is:
-
-```text
-.mcp.json
-```
-
-You can override the canvas storage root with `CANVAS_ROOT` or the CLI/MCP `root` argument:
+You can override the canvas storage root with `CANVAS_ROOT` or the CLI `root` argument:
 
 ```powershell
 $env:CANVAS_ROOT = "D:\CanvasTest"
@@ -271,17 +273,14 @@ The scenario suite writes a local report to:
 .canvas-test-output\report.html
 ```
 
-The validation stack checks Python compilation, unit tests, MCP transport behavior, source and installed plugin startup, the plugin manifest, and fifteen end-to-end scenarios.
-
-If a Codex thread cannot see the Canvas MCP tools, use the bundled CLI as a compatibility path for the same operations and report that MCP tools were not exposed in that thread. Do not hand-create `canvas.json` or invent storage paths.
+The validation stack checks Python compilation, unit tests, source and installed CLI startup, the plugin manifest, and fifteen end-to-end scenarios.
 
 ## Repository Layout
 
 ```text
 .codex-plugin/plugin.json  # Codex plugin manifest
-.mcp.json                  # MCP server configuration
 skills/canvas/SKILL.md     # Codex skill instructions
-src/                       # Core registry, CLI, and MCP server
+src/                       # Core registry and CLI implementation
 scripts/                   # CLI wrapper and validation helpers
 templates/                 # Static browser surface template
 tests/                     # Automated tests

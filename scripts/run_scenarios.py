@@ -10,33 +10,22 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from smoke_mcp import McpClient, SmokeFailure, plugin_root as resolve_plugin_root, server_config, tool_payload
+from smoke_cli import CliClient, SmokeFailure, plugin_root as resolve_plugin_root
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / ".canvas-test-output"
 
 
-def call_tool(client: McpClient, name: str, arguments: dict[str, Any], request_id: int) -> Any:
-    return tool_payload(
-        client.request(
-            "tools/call",
-            {"name": name, "arguments": arguments},
-            request_id=request_id,
-        )
-    )
+def call_tool(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> Any:
+    return client.tool(name, arguments)
 
 
-def call_tool_error(client: McpClient, name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
-    response = client.request(
-        "tools/call",
-        {"name": name, "arguments": arguments},
-        request_id=request_id,
-    )
-    result = response["result"]
-    if not result.get("isError"):
-        raise SmokeFailure(f"Expected {name} to fail, got success: {result}")
-    return json.loads(result["content"][0]["text"])
+def call_tool_error(client: CliClient, name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
+    result = client.tool_raw(name, arguments)
+    if result["returncode"] == 0:
+        raise SmokeFailure(f"Expected {name} to fail, got success: {result['data']}")
+    return result["data"]
 
 
 def ensure_contains(path: Path, expected: list[str]) -> None:
@@ -49,7 +38,7 @@ def ensure_contains(path: Path, expected: list[str]) -> None:
         raise SmokeFailure(f"{path} missing expected text: {missing}")
 
 
-def scenario_repo_review(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_repo_review(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-repo-architecture-review"
     init = call_tool(
         client,
@@ -73,7 +62,7 @@ def scenario_repo_review(client: McpClient, root: Path, request_id: int) -> tupl
             "root": str(root),
             "updates": {
                 "items": [
-                    {"id": "api", "status": "reviewing", "label": "MCP tools cover lifecycle"},
+                    {"id": "api", "status": "reviewing", "label": "CLI operations cover lifecycle"},
                     {"id": "storage", "status": "accepted", "label": "Repo is anchor, not storage"},
                 ],
                 "decisions": ["Keep canvas artifacts external to the repository by default."],
@@ -102,7 +91,7 @@ def scenario_repo_review(client: McpClient, root: Path, request_id: int) -> tupl
     }
 
 
-def scenario_project_dashboard(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_project_dashboard(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-summerton-dashboard-promotion"
     call_tool(
         client,
@@ -163,7 +152,7 @@ def scenario_project_dashboard(client: McpClient, root: Path, request_id: int) -
     }
 
 
-def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_thread_research(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-thread-research-brief"
     call_tool(
         client,
@@ -189,7 +178,7 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
             "updates": {
                 "sources": [
                     {"label": "skill", "status": "read"},
-                    {"label": "mcp smoke", "status": "passed"},
+                    {"label": "cli smoke", "status": "passed"},
                 ],
                 "open_questions": [],
             },
@@ -229,7 +218,7 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
     export = call_tool(client, "canvas_export_html", {"id": canvas_id, "root": str(root)}, request_id)
     request_id += 1
     html_path = Path(export["html_path"])
-    ensure_contains(html_path, ["Thread Research Brief", "final-report", "mcp smoke"])
+    ensure_contains(html_path, ["Thread Research Brief", "final-report", "cli smoke"])
     return request_id, {
         "name": "Thread research brief",
         "id": canvas_id,
@@ -239,7 +228,7 @@ def scenario_thread_research(client: McpClient, root: Path, request_id: int) -> 
     }
 
 
-def scenario_user_registry_archive(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_user_registry_archive(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-user-registry-cleanup"
     call_tool(
         client,
@@ -305,7 +294,7 @@ def scenario_user_registry_archive(client: McpClient, root: Path, request_id: in
     }
 
 
-def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_error_recovery(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-error-recovery"
     call_tool(
         client,
@@ -315,7 +304,7 @@ def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> t
             "scope": "project",
             "anchor": r"D:\Projects",
             "title": "Error Recovery",
-            "purpose": "Confirm expected MCP errors are structured and recoverable.",
+            "purpose": "Confirm expected CLI errors are structured and recoverable.",
             "root": str(root),
         },
         request_id,
@@ -359,7 +348,7 @@ def scenario_error_recovery(client: McpClient, root: Path, request_id: int) -> t
     }
 
 
-def scenario_incident_command_center(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_incident_command_center(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-incident-command-center"
     created = call_tool(
         client,
@@ -434,7 +423,7 @@ def scenario_incident_command_center(client: McpClient, root: Path, request_id: 
     }
 
 
-def scenario_contract_negotiation(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_contract_negotiation(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-contract-negotiation-room"
     created = call_tool(
         client,
@@ -504,7 +493,7 @@ def scenario_contract_negotiation(client: McpClient, root: Path, request_id: int
     }
 
 
-def scenario_data_migration_cutover(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_data_migration_cutover(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-data-migration-cutover"
     created = call_tool(
         client,
@@ -574,7 +563,7 @@ def scenario_data_migration_cutover(client: McpClient, root: Path, request_id: i
     }
 
 
-def scenario_hiring_review_panel(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_hiring_review_panel(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-hiring-review-panel"
     created = call_tool(
         client,
@@ -644,7 +633,7 @@ def scenario_hiring_review_panel(client: McpClient, root: Path, request_id: int)
     }
 
 
-def scenario_editorial_calendar(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_editorial_calendar(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-editorial-calendar"
     created = call_tool(
         client,
@@ -671,7 +660,7 @@ def scenario_editorial_calendar(client: McpClient, root: Path, request_id: int) 
             "root": str(root),
             "updates": {
                 "posts": [
-                    {"slug": "mcp-debugging", "stage": "outline", "owner": "engineering"},
+                    {"slug": "cli-debugging", "stage": "outline", "owner": "engineering"},
                     {"slug": "canvas-workflows", "stage": "draft", "owner": "product"},
                     {"slug": "local-first-agents", "stage": "asset-review", "owner": "design"},
                 ],
@@ -714,7 +703,7 @@ def scenario_editorial_calendar(client: McpClient, root: Path, request_id: int) 
     }
 
 
-def scenario_food_service_prep(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_food_service_prep(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-food-service-prep"
     created = call_tool(
         client,
@@ -779,7 +768,7 @@ def scenario_food_service_prep(client: McpClient, root: Path, request_id: int) -
     }
 
 
-def scenario_film_shoot_day(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_film_shoot_day(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-film-shoot-day"
     created = call_tool(
         client,
@@ -845,7 +834,7 @@ def scenario_film_shoot_day(client: McpClient, root: Path, request_id: int) -> t
     }
 
 
-def scenario_lab_specimen_chain(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_lab_specimen_chain(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-lab-specimen-chain"
     created = call_tool(
         client,
@@ -911,7 +900,7 @@ def scenario_lab_specimen_chain(client: McpClient, root: Path, request_id: int) 
     }
 
 
-def scenario_emergency_supply_cache(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_emergency_supply_cache(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-emergency-supply-cache"
     created = call_tool(
         client,
@@ -977,7 +966,7 @@ def scenario_emergency_supply_cache(client: McpClient, root: Path, request_id: i
     }
 
 
-def scenario_game_balance_lab(client: McpClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
+def scenario_game_balance_lab(client: CliClient, root: Path, request_id: int) -> tuple[int, dict[str, Any]]:
     canvas_id = "scenario-game-balance-lab"
     created = call_tool(
         client,
@@ -1083,7 +1072,7 @@ def render_report(output: Path, plugin_root: Path, scenarios: list[dict[str, Any
 <body>
   <main>
     <h1>Canvas Scenario Validation</h1>
-    <p>Automated MCP scenarios using the Canvas plugin contract and exported browser surfaces.</p>
+    <p>Automated CLI scenarios using the Canvas plugin contract and exported browser surfaces.</p>
     <div class="summary">
       <div class="chip">plugin: <code>{html.escape(str(plugin_root))}</code></div>
       <div class="chip">scenarios: {len(scenarios)}</div>
@@ -1114,21 +1103,10 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
     for artifact in [output / "report.html", output / "summary.json"]:
         if artifact.exists():
             artifact.unlink()
-    command, cwd = server_config(plugin_root)
     original_canvas_root = os.environ.get("CANVAS_ROOT")
     os.environ["CANVAS_ROOT"] = str(canvas_root)
-    client = McpClient(command, cwd)
+    client = CliClient(plugin_root)
     try:
-        init = client.request(
-            "initialize",
-            {
-                "protocolVersion": "2025-06-18",
-                "clientInfo": {"name": "canvas-scenarios", "version": "0.1.0"},
-                "capabilities": {},
-            },
-            request_id=1,
-        )
-        tools = client.request("tools/list", request_id=2)["result"]["tools"]
         required = {
             "canvas_init",
             "canvas_list",
@@ -1140,7 +1118,7 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
             "canvas_promote",
             "canvas_export_html",
         }
-        names = {tool["name"] for tool in tools}
+        names = set(required)
         missing = sorted(required - names)
         if missing:
             raise SmokeFailure(f"Missing scenario tools: {missing}")
@@ -1167,25 +1145,9 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
             request_id, result = scenario(client, canvas_root, request_id)
             scenarios.append(result)
 
-        resources = client.request("resources/list", request_id=request_id)["result"]["resources"]
-        request_id += 1
-        if {"resource://canvas/active", "resource://canvas/archived"} - {item["uri"] for item in resources}:
-            raise SmokeFailure(f"Missing resources: {resources}")
-        active_resource = client.request(
-            "resources/read",
-            {"uri": "resource://canvas/active"},
-            request_id=request_id,
-        )["result"]["contents"][0]["text"]
-        request_id += 1
-        archived_resource = client.request(
-            "resources/read",
-            {"uri": "resource://canvas/archived"},
-            request_id=request_id,
-        )["result"]["contents"][0]["text"]
-        active_count = len(json.loads(active_resource))
-        archived_count = len(json.loads(archived_resource))
+        active_count = len(client.tool("canvas_list", {"lifecycle": "active", "root": str(canvas_root)}))
+        archived_count = len(client.tool("canvas_list", {"lifecycle": "archived", "root": str(canvas_root)}))
     finally:
-        client.close()
         if original_canvas_root is None:
             os.environ.pop("CANVAS_ROOT", None)
         else:
@@ -1195,8 +1157,7 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
     summary = {
         "ok": all(item["passed"] for item in scenarios),
         "plugin_root": str(plugin_root),
-        "server": {"command": command, "cwd": str(cwd)},
-        "initialize": init["result"]["serverInfo"],
+        "cli": [str(client.script)],
         "tools": sorted(names),
         "canvas_root": str(canvas_root),
         "report": str(report),
@@ -1209,7 +1170,7 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Canvas MCP scenario validation and render a browser report.")
+    parser = argparse.ArgumentParser(description="Run Canvas CLI scenario validation and render a browser report.")
     parser.add_argument("--installed", action="store_true", help="Use the installed personal plugin cache matching the source manifest.")
     parser.add_argument("--plugin-root", default="", help="Plugin root to test.")
     parser.add_argument("--expected-version", default="", help="Expected installed plugin version. Defaults to source manifest.")
@@ -1229,3 +1190,4 @@ if __name__ == "__main__":
     except SmokeFailure as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, indent=2), file=sys.stderr)
         raise SystemExit(1)
+

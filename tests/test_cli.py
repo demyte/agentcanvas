@@ -96,6 +96,55 @@ class CanvasCliTests(unittest.TestCase):
             result = self.run_cli("--root", tmp, "init", "Bad", "--scope", "invalid")
             self.assertNotEqual(result.returncode, 0)
 
+    def test_tool_command_covers_canvas_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            created = self.run_tool(
+                "canvas_init",
+                {
+                    "id": "Tool CLI",
+                    "scope": "thread",
+                    "root": tmp,
+                    "associatedThreads": ["thread-tool"],
+                    "promotion_targets": ["tool-report"],
+                },
+            )
+            self.assertEqual(created["id"], "tool-cli")
+
+            listed = self.run_tool("canvas_list", {"root": tmp, "threadId": "thread-tool"})
+            self.assertEqual([item["id"] for item in listed], ["tool-cli"])
+
+            associated = self.run_tool(
+                "canvas_associate_thread",
+                {"id": "tool-cli", "root": tmp, "threadId": "thread-extra"},
+            )
+            self.assertEqual(associated["associatedThreads"], ["thread-tool", "thread-extra"])
+
+            updated = self.run_tool("canvas_update_state", {"id": "tool-cli", "root": tmp, "updates": {"status": "ready"}})
+            self.assertEqual(updated["state"]["status"], "ready")
+
+            fetched = self.run_tool("canvas_get", {"id": "tool-cli", "root": tmp})
+            self.assertEqual(fetched["scope"], "thread")
+
+            validation = self.run_tool("canvas_validate", {"id": "tool-cli", "root": tmp})
+            self.assertTrue(validation["valid"])
+
+            exported = self.run_tool("canvas_export_html", {"id": "tool-cli", "root": tmp})
+            self.assertTrue(Path(exported["html_path"]).exists())
+
+            promoted = self.run_tool(
+                "canvas_promote",
+                {"id": "tool-cli", "root": tmp, "target": "tool-report", "reference": "outputs/tool-report.md"},
+            )
+            self.assertEqual(promoted["promotions"][-1]["target"], "tool-report")
+
+            archived = self.run_tool("canvas_archive", {"id": "tool-cli", "root": tmp})
+            self.assertEqual(archived["lifecycle"], "archived")
+
+    def run_tool(self, name: str, payload: dict[str, object]) -> dict[str, object] | list[dict[str, object]]:
+        result = self.run_cli("tool", name, json.dumps(payload))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return json.loads(result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
