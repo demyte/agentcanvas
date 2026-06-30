@@ -227,8 +227,17 @@ class CanvasRegistry:
                 encoding="utf-8",
             )
             (canvas_dir / "README.md").write_text(self._readme_text(metadata), encoding="utf-8")
-        except Exception:
-            shutil.rmtree(canvas_dir, ignore_errors=True)
+        except Exception as exc:
+            try:
+                shutil.rmtree(canvas_dir)
+            except Exception as cleanup_exc:
+                raise CanvasValidationError(
+                    f"Canvas initialization failed and rollback could not remove {canvas_dir}: {cleanup_exc}"
+                ) from exc
+            if canvas_dir.exists():
+                raise CanvasValidationError(
+                    f"Canvas initialization failed and rollback left a partial canvas at {canvas_dir}"
+                ) from exc
             raise
         return metadata
 
@@ -518,8 +527,8 @@ class CanvasRegistry:
             encoding="utf-8",
         )
         return {
-            "id": metadata["id"],
-            "lifecycle": metadata["lifecycle"],
+            "id": canvas_dir.name,
+            "lifecycle": canvas_dir.parent.name,
             "html_path": str(output_path),
             "data_path": str(data_path),
             "valid": validation["valid"],

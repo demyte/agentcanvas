@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 import sys
 import os
@@ -161,6 +162,25 @@ class CanvasCoreTests(unittest.TestCase):
             created = CanvasRegistry(Path(tmp)).init_canvas("Write Failure", scope="project")
             self.assertEqual(created["id"], "write-failure")
 
+    def test_init_reports_failed_rollback(self) -> None:
+        class FailingRegistry(CanvasRegistry):
+            def _write_json(self, path: Path, data: dict) -> None:
+                super()._write_json(path, data)
+                if path.name == "canvas.json":
+                    raise OSError("simulated write failure")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = FailingRegistry(Path(tmp))
+            canvas_dir = Path(tmp) / "active" / "locked-failure"
+
+            with mock.patch("canvas_core.core.shutil.rmtree", side_effect=OSError("locked")):
+                with self.assertRaises(CanvasValidationError) as raised:
+                    registry.init_canvas("Locked Failure", scope="project")
+
+            self.assertTrue(canvas_dir.exists())
+            self.assertIn("rollback could not remove", str(raised.exception))
+            self.assertIn(str(canvas_dir), str(raised.exception))
+
     def test_validation_rejects_stale_storage_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = CanvasRegistry(Path(tmp))
@@ -234,6 +254,26 @@ class CanvasCoreTests(unittest.TestCase):
             self.assertFalse(exported["valid"])
             data_path = Path(exported["data_path"])
             self.assertIn("id must match the canvas directory", data_path.read_text(encoding="utf-8"))
+
+    def test_export_handles_missing_required_metadata_fields(self) -> None:
+        for field in ["id", "lifecycle"]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as tmp:
+                registry = CanvasRegistry(Path(tmp))
+                registry.init_canvas("Missing Field", scope="project")
+                metadata_file = Path(tmp) / "active" / "missing-field" / "canvas.json"
+                metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+                metadata.pop(field)
+                metadata_file.write_text(json.dumps(metadata), encoding="utf-8")
+
+                exported = registry.export_html("missing-field")
+
+                self.assertEqual(exported["id"], "missing-field")
+                self.assertEqual(exported["lifecycle"], "active")
+                self.assertFalse(exported["valid"])
+                self.assertIn(
+                    f"Missing metadata field: {field}",
+                    Path(exported["data_path"]).read_text(encoding="utf-8"),
+                )
 
     def test_associate_thread_updates_existing_canvas_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

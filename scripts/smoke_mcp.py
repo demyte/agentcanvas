@@ -295,7 +295,7 @@ def smoke(command: list[str], cwd: Path, canvas_id: str, probe: bool) -> dict[st
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke-test the Canvas MCP server using Codex-compatible stdio.")
     parser.add_argument("--installed", action="store_true", help="Smoke-test the installed personal plugin cache matching the source manifest.")
-    parser.add_argument("--plugin-root", default="", help="Plugin root to test. Defaults to source root or latest cache.")
+    parser.add_argument("--plugin-root", default="", help="Plugin root to test. Defaults to source root, or in installed mode to the cache matching the expected version.")
     parser.add_argument("--expected-version", default="", help="Expected installed plugin version. Defaults to source manifest.")
     parser.add_argument("--canvas-id", default="mcp-smoke", help="Throwaway canvas id for lifecycle calls.")
     parser.add_argument("--probe", action="store_true", help="Enable CANVAS_MCP_PROBE for this run.")

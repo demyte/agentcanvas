@@ -8,6 +8,7 @@ import sys
 import argparse
 import contextlib
 import io
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,6 +94,20 @@ class PluginConfigTests(unittest.TestCase):
 
             with self.assertRaises(smoke_mcp.SmokeFailure):
                 smoke_mcp.server_config(root)
+
+    def test_smoke_help_matches_exact_installed_selection(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "smoke_mcp.py"), "--help"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn("cache matching", result.stdout)
+        self.assertIn("expected", result.stdout)
+        self.assertIn("version", result.stdout)
+        self.assertNotIn("latest cache", result.stdout)
 
     def assert_server_uses_plugin_relative_startup(self, server: dict[str, object]) -> None:
         command = str(server["command"])
