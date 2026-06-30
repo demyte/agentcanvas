@@ -18,7 +18,7 @@ def run(command: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Canvas validation checks.")
     parser.add_argument("--installed", action="store_true", help="Also smoke-test the installed personal plugin cache.")
-    parser.add_argument("--scenarios", action="store_true", help="Run the five-scenario MCP/browser-surface suite.")
+    parser.add_argument("--scenarios", action="store_true", help="Run the MCP/browser-surface scenario suite.")
     args = parser.parse_args()
 
     run([sys.executable, "-m", "compileall", "src", "scripts", "tests"])

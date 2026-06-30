@@ -211,6 +211,78 @@ class McpServerTests(unittest.TestCase):
         response = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "id": 99, "method": "ping"})
         self.assertEqual(response, {"jsonrpc": "2.0", "id": 99, "result": {}})
 
+    def test_notifications_do_not_emit_responses(self) -> None:
+        ping = canvas_mcp_server.handle_request({"jsonrpc": "2.0", "method": "ping"})
+        cancelled = canvas_mcp_server.handle_request(
+            {"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 123}}
+        )
+
+        self.assertIsNone(ping)
+        self.assertIsNone(cancelled)
+
+    def test_tool_argument_validation_rejects_bad_shapes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_threads = canvas_mcp_server.handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 11,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_init",
+                        "arguments": {
+                            "id": "Bad Threads",
+                            "scope": "thread",
+                            "associatedThreads": "thread-alpha",
+                            "root": tmp,
+                        },
+                    },
+                }
+            )
+            missing_id = canvas_mcp_server.handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 12,
+                    "method": "tools/call",
+                    "params": {"name": "canvas_get", "arguments": {"root": tmp}},
+                }
+            )
+            bad_updates = canvas_mcp_server.handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 13,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "canvas_update_state",
+                        "arguments": {"id": "anything", "updates": "not-object", "root": tmp},
+                    },
+                }
+            )
+
+        assert bad_threads is not None
+        assert missing_id is not None
+        assert bad_updates is not None
+        for response in [bad_threads, missing_id, bad_updates]:
+            self.assertNotIn("error", response)
+            self.assertTrue(response["result"]["isError"])
+        self.assertIn("associatedThreads", bad_threads["result"]["content"][0]["text"])
+        self.assertIn("Missing required argument", missing_id["result"]["content"][0]["text"])
+        self.assertIn("updates must be an object", bad_updates["result"]["content"][0]["text"])
+
+    def test_resource_errors_are_json_rpc_errors(self) -> None:
+        response = canvas_mcp_server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 14,
+                "method": "resources/read",
+                "params": {"uri": "resource://not-canvas/missing"},
+            }
+        )
+
+        assert response is not None
+        self.assertIn("error", response)
+        self.assertEqual(response["error"]["code"], -32000)
+        self.assertNotIn("result", response)
+
     def test_newline_json_transport_matches_codex_stdio(self) -> None:
         response = self.send_line({"jsonrpc": "2.0", "id": 10, "method": "tools/list", "params": {}})
         self.assertIn("tools", response["result"])

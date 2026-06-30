@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import smoke_mcp  # noqa: E402
 
 
 class PluginConfigTests(unittest.TestCase):
@@ -19,6 +24,40 @@ class PluginConfigTests(unittest.TestCase):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["mcpServers"], "./.mcp.json")
 
+    def test_smoke_selects_exact_installed_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_root = Path(tmp)
+            self.write_plugin_root(cache_root / "0.1.0+old", "0.1.0+old")
+            expected = self.write_plugin_root(cache_root / "0.1.0+new", "0.1.0+new")
+            original = smoke_mcp.DEFAULT_CACHE_ROOT
+            try:
+                smoke_mcp.DEFAULT_CACHE_ROOT = cache_root
+                self.assertEqual(smoke_mcp.latest_installed_plugin("0.1.0+new"), expected)
+                with self.assertRaises(smoke_mcp.SmokeFailure):
+                    smoke_mcp.latest_installed_plugin("0.1.0+missing")
+            finally:
+                smoke_mcp.DEFAULT_CACHE_ROOT = original
+
+    def test_smoke_rejects_absolute_mcp_arg(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.write_plugin_root(Path(tmp), "0.1.0+test")
+            config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
+            config["mcpServers"]["canvas"]["args"] = [str((root / "src" / "canvas_mcp_server.py").resolve())]
+            (root / ".mcp.json").write_text(json.dumps(config), encoding="utf-8")
+
+            with self.assertRaises(smoke_mcp.SmokeFailure):
+                smoke_mcp.server_config(root)
+
+    def test_smoke_rejects_non_python_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.write_plugin_root(Path(tmp), "0.1.0+test")
+            config = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
+            config["mcpServers"]["canvas"]["command"] = sys.executable
+            (root / ".mcp.json").write_text(json.dumps(config), encoding="utf-8")
+
+            with self.assertRaises(smoke_mcp.SmokeFailure):
+                smoke_mcp.server_config(root)
+
     def assert_server_uses_plugin_relative_startup(self, server: dict[str, object]) -> None:
         command = str(server["command"])
         self.assertEqual(command, "python")
@@ -27,6 +66,20 @@ class PluginConfigTests(unittest.TestCase):
         args = server["args"]
         self.assertIsInstance(args, list)
         self.assertFalse(Path(str(args[0])).is_absolute())
+
+    def write_plugin_root(self, root: Path, version: str) -> Path:
+        (root / ".codex-plugin").mkdir(parents=True, exist_ok=True)
+        (root / "src").mkdir(parents=True, exist_ok=True)
+        (root / "src" / "canvas_mcp_server.py").write_text("print('ok')\n", encoding="utf-8")
+        (root / ".codex-plugin" / "plugin.json").write_text(
+            json.dumps({"version": version, "mcpServers": "./.mcp.json"}),
+            encoding="utf-8",
+        )
+        (root / ".mcp.json").write_text(
+            json.dumps({"mcpServers": {"canvas": {"command": "python", "args": ["./src/canvas_mcp_server.py"], "cwd": "."}}}),
+            encoding="utf-8",
+        )
+        return root
 
 
 if __name__ == "__main__":

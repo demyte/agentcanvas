@@ -22,7 +22,15 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def latest_installed_plugin() -> Path:
+def source_plugin_version() -> str:
+    manifest = load_json(ROOT / ".codex-plugin" / "plugin.json")
+    version = manifest.get("version")
+    if not isinstance(version, str) or not version.strip():
+        raise SmokeFailure("Source plugin manifest is missing a non-empty version")
+    return version
+
+
+def latest_installed_plugin(expected_version: str | None = None) -> Path:
     if not DEFAULT_CACHE_ROOT.exists():
         raise SmokeFailure(f"Installed canvas plugin cache not found: {DEFAULT_CACHE_ROOT}")
     candidates = [
@@ -32,16 +40,28 @@ def latest_installed_plugin() -> Path:
     ]
     if not candidates:
         raise SmokeFailure(f"No complete installed canvas plugin versions found under: {DEFAULT_CACHE_ROOT}")
+    if expected_version:
+        expected = DEFAULT_CACHE_ROOT / expected_version
+        if expected not in candidates:
+            raise SmokeFailure(f"Installed canvas plugin version {expected_version!r} not found under: {DEFAULT_CACHE_ROOT}")
+        return expected
     return max(candidates, key=lambda item: item.name)
 
 
 def plugin_root(args: argparse.Namespace) -> Path:
     if args.installed:
-        return Path(args.plugin_root).expanduser() if args.plugin_root else latest_installed_plugin()
+        expected_version = args.expected_version or source_plugin_version()
+        root = Path(args.plugin_root).expanduser() if args.plugin_root else latest_installed_plugin(expected_version)
+        manifest = load_json(root / ".codex-plugin" / "plugin.json")
+        actual_version = manifest.get("version")
+        if actual_version != expected_version:
+            raise SmokeFailure(f"Installed plugin version {actual_version!r} does not match expected {expected_version!r}")
+        return root
     return Path(args.plugin_root).expanduser() if args.plugin_root else ROOT
 
 
 def server_config(root: Path) -> tuple[list[str], Path]:
+    root = root.resolve()
     manifest = load_json(root / ".codex-plugin" / "plugin.json")
     mcp_ref = manifest.get("mcpServers")
     if mcp_ref != "./.mcp.json":
@@ -49,8 +69,28 @@ def server_config(root: Path) -> tuple[list[str], Path]:
 
     config = load_json(root / ".mcp.json")
     server = config["mcpServers"]["canvas"]
-    command = [server["command"], *server["args"]]
-    cwd = root if server.get("cwd") == "." else root / str(server.get("cwd", "."))
+    command_name = server.get("command")
+    if command_name != "python":
+        raise SmokeFailure(f"Canvas MCP command must be 'python', got {command_name!r}")
+    args = server.get("args")
+    if not isinstance(args, list) or not args:
+        raise SmokeFailure("Canvas MCP args must be a non-empty array")
+    for arg in args:
+        path = Path(str(arg))
+        if path.is_absolute() or ".." in path.parts:
+            raise SmokeFailure(f"Canvas MCP args must be plugin-relative paths, got {arg!r}")
+    entrypoint = (root / str(args[0])).resolve()
+    try:
+        entrypoint.relative_to(root)
+    except ValueError as exc:
+        raise SmokeFailure(f"Canvas MCP entrypoint must resolve under the plugin root: {args[0]!r}") from exc
+    if not entrypoint.exists():
+        raise SmokeFailure(f"Canvas MCP entrypoint does not exist: {entrypoint}")
+    cwd_config = server.get("cwd")
+    if cwd_config != ".":
+        raise SmokeFailure(f"Canvas MCP cwd must be '.', got {cwd_config!r}")
+    command = [command_name, *args]
+    cwd = root
     return command, cwd
 
 
@@ -256,6 +296,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke-test the Canvas MCP server using Codex-compatible stdio.")
     parser.add_argument("--installed", action="store_true", help="Smoke-test the latest installed personal plugin cache.")
     parser.add_argument("--plugin-root", default="", help="Plugin root to test. Defaults to source root or latest cache.")
+    parser.add_argument("--expected-version", default="", help="Expected installed plugin version. Defaults to source manifest.")
     parser.add_argument("--canvas-id", default="mcp-smoke", help="Throwaway canvas id for lifecycle calls.")
     parser.add_argument("--probe", action="store_true", help="Enable CANVAS_MCP_PROBE for this run.")
     args = parser.parse_args()

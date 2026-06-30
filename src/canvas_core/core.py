@@ -79,19 +79,44 @@ def ensure_relative_file(value: str) -> str:
     return path.as_posix()
 
 
-def coerce_list(values: list[str] | None, fallback: list[str]) -> list[str]:
+def coerce_list(values: list[str] | None, fallback: list[str], field_name: str = "value") -> list[str]:
     if values is None:
         return list(fallback)
+    if not isinstance(values, list):
+        raise CanvasValidationError(f"{field_name} must be an array of strings.")
     clean: list[str] = []
     for value in values:
-        item = str(value).strip()
+        if not isinstance(value, str):
+            raise CanvasValidationError(f"{field_name} must be an array of strings.")
+        item = value.strip()
         if item and item not in clean:
             clean.append(item)
     return clean
 
 
 def coerce_thread_ids(values: list[str] | None) -> list[str]:
-    return coerce_list(values, [])
+    return coerce_list(values, [], "associatedThreads")
+
+
+def validate_non_empty_string_list(value: Any, field_name: str, *, allow_missing: bool = False) -> list[str] | None:
+    if value is None and allow_missing:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
+        raise CanvasValidationError(f"{field_name} must be an array of non-empty strings")
+    return value
+
+
+def validate_promotions(value: Any) -> None:
+    if not isinstance(value, list):
+        raise CanvasValidationError("promotions must be an array of promotion records")
+    for index, promotion in enumerate(value):
+        if not isinstance(promotion, dict):
+            raise CanvasValidationError(f"promotions[{index}] must be an object")
+        for field in ["target", "reference", "promoted_at"]:
+            if not isinstance(promotion.get(field), str) or not promotion[field].strip():
+                raise CanvasValidationError(f"promotions[{index}].{field} must be a non-empty string")
+        if "note" in promotion and not isinstance(promotion["note"], str):
+            raise CanvasValidationError(f"promotions[{index}].note must be a string")
 
 
 def anchor_fingerprint(anchor: str | None) -> str:
@@ -169,10 +194,10 @@ class CanvasRegistry:
             "created_at": now,
             "updated_at": now,
             "state_files": state_files,
-            "human_actions": coerce_list(human_actions, DEFAULT_HUMAN_ACTIONS),
-            "agent_actions": coerce_list(agent_actions, DEFAULT_AGENT_ACTIONS),
+            "human_actions": coerce_list(human_actions, DEFAULT_HUMAN_ACTIONS, "human_actions"),
+            "agent_actions": coerce_list(agent_actions, DEFAULT_AGENT_ACTIONS, "agent_actions"),
             "shared_state": state_files,
-            "promotion_targets": coerce_list(promotion_targets, DEFAULT_PROMOTION_TARGETS),
+            "promotion_targets": coerce_list(promotion_targets, DEFAULT_PROMOTION_TARGETS, "promotion_targets"),
             "promotions": [],
         }
 
@@ -205,7 +230,10 @@ class CanvasRegistry:
             for metadata_file in sorted(base.glob("*/canvas.json")):
                 try:
                     metadata = self._read_json(metadata_file)
-                    if thread_id and thread_id not in metadata.get("associatedThreads", []):
+                    associated_threads = metadata.get("associatedThreads", [])
+                    if thread_id and (
+                        not isinstance(associated_threads, list) or thread_id not in associated_threads
+                    ):
                         continue
                     records.append(metadata)
                 except (OSError, json.JSONDecodeError):
@@ -248,6 +276,10 @@ class CanvasRegistry:
         if target.exists():
             raise CanvasValidationError(f"Archived canvas already exists: {normalized_id}")
 
+        validation = self.validate_canvas(normalized_id, "active")
+        if not validation["valid"]:
+            raise CanvasValidationError("; ".join(validation["errors"]))
+
         shutil.move(str(source), str(target))
         metadata_file = target / "canvas.json"
         metadata = self._read_json(metadata_file)
@@ -268,14 +300,16 @@ class CanvasRegistry:
         if not thread_id:
             raise CanvasValidationError("threadId cannot be empty.")
         metadata_file = self._metadata_path(canvas_id, lifecycle)
+
+        validation = self.validate_canvas(canvas_id, lifecycle)
+        if not validation["valid"]:
+            raise CanvasValidationError("; ".join(validation["errors"]))
+
         metadata = self._read_json(metadata_file)
         associated_threads = metadata.get("associatedThreads", [])
-        if not isinstance(associated_threads, list) or not all(
-            isinstance(item, str) and item.strip() for item in associated_threads
-        ):
-            raise CanvasValidationError("associatedThreads must be an array of non-empty strings")
+        validate_non_empty_string_list(associated_threads, "associatedThreads")
         if thread_id not in associated_threads:
-            associated_threads.append(thread_id)
+            associated_threads = [*associated_threads, thread_id]
         metadata["associatedThreads"] = associated_threads
         metadata["last_updated_from_thread"] = thread_id
         metadata["updated_at"] = utc_now()
@@ -304,16 +338,44 @@ class CanvasRegistry:
             errors.append("kind must be 'canvas'")
         if metadata.get("lifecycle") not in LIFECYCLES:
             errors.append("lifecycle must be active or archived")
+        else:
+            actual_lifecycle = metadata_file.parent.parent.name
+            if actual_lifecycle in LIFECYCLES and metadata.get("lifecycle") != actual_lifecycle:
+                errors.append(f"lifecycle must match canvas location: {actual_lifecycle}")
         if metadata.get("scope") not in SCOPES:
             errors.append(f"scope must be one of {sorted(SCOPES)}")
+        storage_path = metadata.get("storage_path")
+        if not isinstance(storage_path, str) or not storage_path.strip():
+            errors.append("storage_path must be a non-empty string")
+        else:
+            try:
+                if Path(storage_path).expanduser().resolve() != canvas_dir.resolve():
+                    errors.append("storage_path must match the canvas directory")
+            except OSError as exc:
+                errors.append(f"storage_path could not be resolved: {exc}")
         if "associatedThreads" in metadata:
             associated_threads = metadata["associatedThreads"]
-            if not isinstance(associated_threads, list) or not all(
-                isinstance(item, str) and item.strip() for item in associated_threads
-            ):
-                errors.append("associatedThreads must be an array of non-empty strings")
+            try:
+                validate_non_empty_string_list(associated_threads, "associatedThreads")
+            except CanvasValidationError as exc:
+                errors.append(str(exc))
+        if "promotion_targets" in metadata:
+            try:
+                validate_non_empty_string_list(metadata["promotion_targets"], "promotion_targets")
+            except CanvasValidationError as exc:
+                errors.append(str(exc))
+        if "promotions" in metadata:
+            try:
+                validate_promotions(metadata["promotions"])
+            except CanvasValidationError as exc:
+                errors.append(str(exc))
 
-        for filename in metadata.get("state_files", []):
+        try:
+            state_files = validate_non_empty_string_list(metadata.get("state_files", []), "state_files") or []
+        except CanvasValidationError as exc:
+            errors.append(str(exc))
+            state_files = []
+        for filename in state_files:
             try:
                 relative = ensure_relative_file(str(filename))
             except CanvasValidationError as exc:
@@ -322,7 +384,14 @@ class CanvasRegistry:
             if not (canvas_dir / relative).exists():
                 errors.append(f"Missing state file: {relative}")
 
-        for filename in metadata.get("shared_state", []):
+        try:
+            shared_state = validate_non_empty_string_list(
+                metadata.get("shared_state", []), "shared_state"
+            ) or []
+        except CanvasValidationError as exc:
+            errors.append(str(exc))
+            shared_state = []
+        for filename in shared_state:
             try:
                 relative = ensure_relative_file(str(filename))
             except CanvasValidationError as exc:
@@ -355,7 +424,12 @@ class CanvasRegistry:
         note: str = "",
     ) -> dict[str, Any]:
         metadata_file = self._metadata_path(canvas_id, "active")
+        validation = self.validate_canvas(canvas_id, "active")
+        if not validation["valid"]:
+            raise CanvasValidationError("; ".join(validation["errors"]))
         metadata = self._read_json(metadata_file)
+        validate_non_empty_string_list(metadata.get("promotion_targets"), "promotion_targets")
+        validate_promotions(metadata.get("promotions", []))
         allowed = set(metadata.get("promotion_targets", []))
         if target not in allowed:
             raise CanvasValidationError(f"Promotion target '{target}' is not allowed for this canvas.")
