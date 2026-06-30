@@ -151,13 +151,13 @@ python scripts\canvas.py archive review-pr-123
 
 ## Browser Surfaces
 
-Canvas exports static HTML pages on disk. The HTML file is copied from the checked-in template at:
+Canvas exports static HTML starter pages on disk. The HTML file is copied from the checked-in blank template at:
 
 ```text
 templates/canvas-viewer.html
 ```
 
-Canvas-specific data is written beside it as `canvas-data.js`. The export is a review surface for working state, not a promotion into durable project state.
+Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not a designed review surface or a promotion into durable project state.
 
 For richer local surfaces, prefer the lightest option that works:
 

@@ -122,9 +122,9 @@ Do not choose Next.js by default for local canvas artifacts.
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
-Static HTML surfaces must be real HTML pages on disk. Prefer copying or editing a checked-in template and placing local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
+Static HTML surfaces must be real HTML pages on disk. Start from the checked-in blank template and place local state beside it, such as `canvas-data.js`, `state.json`, `canvas.json`, and `notes.md`. Do not generate whole HTML pages from script strings.
 
-Use `canvas_export_html` to create or refresh the `canvas.html` review surface. The export is a view of working state, not a durable promotion.
+Use `canvas_export_html` to create or refresh the `canvas.html` starter page and `canvas-data.js` sidecar. The exported HTML template intentionally has no body; populate the body only when building a canvas-specific surface. The export is a working artifact, not a durable promotion.
 
 ## Promotion
 

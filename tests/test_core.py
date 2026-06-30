@@ -16,6 +16,13 @@ TEMPLATE = ROOT / "templates" / "canvas-viewer.html"
 
 
 class CanvasCoreTests(unittest.TestCase):
+    def test_canvas_viewer_template_is_creation_stub(self) -> None:
+        template = TEMPLATE.read_text(encoding="utf-8").lower()
+
+        self.assertIn("@tailwindcss/browser@4", template)
+        self.assertIn("./canvas-data.js", template)
+        self.assertNotIn("<body", template)
+
     def test_default_canvas_root_uses_agents_canvas(self) -> None:
         original = os.environ.pop("CANVAS_ROOT", None)
         try:
