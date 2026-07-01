@@ -13,29 +13,35 @@ A canvas is a working artifact for an active investigation, plan, review, dashbo
 
 The Canvas CLI owns storage, lifecycle, paths, collision handling, validation, export sidecars, server state, and archive movement. Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout.
 
-Run the CLI wrapper relative to this `SKILL.md`:
+The published executable lives under this skill:
 
-```bash
-python ../../scripts/canvas.py <command> <arguments>
+```powershell
+.\bin\canvas.exe <command> <arguments>
 ```
 
-If that path is unavailable from the installed skill location, locate the installed `canvas` plugin root and run `scripts/canvas.py`. Assume `python` is on the path.
+If `bin\canvas.exe` is missing or older than the bundled source, publish it just in time through the wrapper relative to this `SKILL.md`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ..\..\scripts\canvas.ps1 <command> <arguments>
+```
+
+The wrapper publishes the .NET file-based app from `..\..\scripts\canvas.cs` into `bin\canvas.exe`, then runs it. Assume `dotnet` is on the path.
 
 Use CLI verbs and arguments, not JSON payloads. For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>`.
 
 ```bash
-python ../../scripts/canvas.py init -id review-board -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
-python ../../scripts/canvas.py update-state -id review-board -set status=reviewing
-python ../../scripts/canvas.py update-state -id review-board -merge-file .\state-update.json
-python ../../scripts/canvas.py validate -id review-board
-python ../../scripts/canvas.py open -id review-board
+.\bin\canvas.exe init -id review-board -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
+.\bin\canvas.exe update-state -id review-board -set status=reviewing
+.\bin\canvas.exe update-state -id review-board -merge-file .\state-update.json
+.\bin\canvas.exe validate -id review-board
+.\bin\canvas.exe open -id review-board
 ```
 
 Use `--help`, `-h`, or `-?` for the command reference:
 
 ```bash
-python ../../scripts/canvas.py -?
-python ../../scripts/canvas.py init -?
+.\bin\canvas.exe -?
+.\bin\canvas.exe init -?
 ```
 
 Treat returned `storage_path`, `html_path`, `data_path`, and HTTP URLs as authoritative.
@@ -99,10 +105,10 @@ For existing custom HTML canvases, the default update flow is: edit `state.json`
 Prefer the Canvas HTTP server over `file://` paths for Browser inspection. Pages served from `http://127.0.0.1` are easier for Codex Browser tooling to inspect and control.
 
 ```bash
-python ../../scripts/canvas.py serve
-python ../../scripts/canvas.py server-status
-python ../../scripts/canvas.py server-stop
-python ../../scripts/canvas.py open -id review-board
+.\bin\canvas.exe serve
+.\bin\canvas.exe server-status
+.\bin\canvas.exe server-stop
+.\bin\canvas.exe open -id review-board
 ```
 
 `serve` binds to `127.0.0.1:12345` unless `-port` is passed. `open -id <canvas-id>` starts the server if needed and returns the canvas URL. The root URL shows a searchable and sortable Canvas index backed by `.server.json`.

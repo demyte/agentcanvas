@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,8 @@ def latest_installed_plugin(expected_version: str | None = None) -> Path:
         for item in DEFAULT_CACHE_ROOT.iterdir()
         if item.is_dir()
         and (item / ".codex-plugin" / "plugin.json").exists()
-        and (item / "scripts" / "canvas.py").exists()
+        and (item / "scripts" / "canvas.cs").exists()
+        and (item / "scripts" / "canvas.ps1").exists()
     ]
     if not candidates:
         raise SmokeFailure(f"No complete installed canvas plugin versions found under: {DEFAULT_CACHE_ROOT}")
@@ -62,9 +64,35 @@ def plugin_root(args: argparse.Namespace) -> Path:
 class CliClient:
     def __init__(self, root: Path):
         self.root = root.resolve()
-        self.script = self.root / "scripts" / "canvas.py"
-        if not self.script.exists():
-            raise SmokeFailure(f"Canvas CLI wrapper not found: {self.script}")
+        self.wrapper = self.root / "scripts" / "canvas.ps1"
+        self.exe = self.root / "skills" / "canvas" / "bin" / "canvas.exe"
+        if not self.wrapper.exists():
+            raise SmokeFailure(f"Canvas CLI wrapper not found: {self.wrapper}")
+        self.ensure_cli()
+
+    def ensure_cli(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(self.wrapper),
+                    "-root",
+                    tmp,
+                    "list",
+                ],
+                cwd=self.root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        if result.returncode != 0:
+            raise SmokeFailure(f"Canvas CLI publish failed: {result.stdout}{result.stderr}")
+        if not self.exe.exists():
+            raise SmokeFailure(f"Canvas CLI executable was not published: {self.exe}")
 
     def operation(self, name: str, payload: dict[str, Any]) -> Any:
         result = self.operation_raw(name, payload)
@@ -82,7 +110,7 @@ class CliClient:
 
     def run(self, args: list[str]) -> dict[str, Any]:
         result = subprocess.run(
-            [sys.executable, str(self.script), *args],
+            [str(self.exe), *args],
             cwd=self.root,
             check=False,
             capture_output=True,
@@ -223,7 +251,7 @@ def smoke(root: Path, canvas_id: str) -> dict[str, Any]:
     if not active["valid"] or not archived_validation["valid"]:
         raise SmokeFailure(f"Validation failed: active={active} archived={archived_validation}")
     return {
-        "cli": [sys.executable, str(client.script)],
+        "cli": [str(client.exe)],
         "created": created["id"],
         "fetched": fetched["id"],
         "associatedThreads": associated["associatedThreads"],

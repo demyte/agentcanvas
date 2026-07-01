@@ -1,6 +1,6 @@
 {
   "name": "canvas",
-  "version": "0.1.0+codex.20260701074837",
+  "version": "0.2.0+codex.20260701124000",
   "description": "Semi-persistent canvas workspaces for Codex.",
   "author": {
     "name": "James Summerton"
@@ -14,6 +14,7 @@
     "category": "Productivity",
     "capabilities": [
       "CLI",
+      ".NET",
       "Filesystem",
       "Workflow"
     ],

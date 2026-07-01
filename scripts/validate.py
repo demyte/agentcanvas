@@ -21,7 +21,7 @@ def main() -> int:
     parser.add_argument("--scenarios", action="store_true", help="Run the CLI/browser-surface scenario suite.")
     args = parser.parse_args()
 
-    run([sys.executable, "-m", "compileall", "src", "scripts", "tests"])
+    run([sys.executable, "-m", "compileall", "scripts", "tests"])
     run([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
     run([sys.executable, "scripts/smoke_cli.py", "--canvas-id", "validate-source-smoke"])
     if args.scenarios:

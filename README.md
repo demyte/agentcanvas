@@ -83,7 +83,7 @@ The bundled `canvas` skill tells Codex to defer creation, updates, validation, a
 
 ## CLI Operations
 
-Canvas bundles a Python CLI with command verbs:
+Canvas bundles a .NET file-based CLI with command verbs:
 
 | Command | Purpose |
 | --- | --- |
@@ -106,25 +106,27 @@ Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a
 Run operations through:
 
 ```powershell
-python scripts\canvas.py init -id "review-board" -scope repo -anchor "D:\Projects\repo"
-python scripts\canvas.py list -lifecycle active
-python scripts\canvas.py validate -id "review-board"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\canvas.ps1 init -id "review-board" -scope repo -anchor "D:\Projects\repo"
+skills\canvas\bin\canvas.exe list -lifecycle active
+skills\canvas\bin\canvas.exe validate -id "review-board"
 ```
+
+The PowerShell wrapper publishes `scripts\canvas.cs` just in time to `skills\canvas\bin\canvas.exe` when the executable is missing or stale. The `bin` folder is ignored by git.
 
 ## CLI Usage
 
 The local CLI is useful for testing, inspection, and direct operations:
 
 ```powershell
-python scripts\canvas.py --help
-python scripts\canvas.py -?
-python scripts\canvas.py init -?
+skills\canvas\bin\canvas.exe --help
+skills\canvas\bin\canvas.exe -?
+skills\canvas\bin\canvas.exe init -?
 ```
 
 Create a repo-scoped canvas:
 
 ```powershell
-python scripts\canvas.py init -id review-pr-123 `
+skills\canvas\bin\canvas.exe init -id review-pr-123 `
   -scope repo `
   -anchor D:\Projects\my-repo `
   -title "PR 123 Review" `
@@ -134,7 +136,7 @@ python scripts\canvas.py init -id review-pr-123 `
 Create a thread-scoped canvas:
 
 ```powershell
-python scripts\canvas.py init -id thread-brief `
+skills\canvas\bin\canvas.exe init -id thread-brief `
   -scope thread `
   -associated-thread <thread-id>
 ```
@@ -142,25 +144,25 @@ python scripts\canvas.py init -id thread-brief `
 List canvases associated with a thread:
 
 ```powershell
-python scripts\canvas.py list -thread-id <thread-id>
+skills\canvas\bin\canvas.exe list -thread-id <thread-id>
 ```
 
 Update structured state:
 
 ```powershell
-python scripts\canvas.py update-state -id review-pr-123 -set status=reviewing
+skills\canvas\bin\canvas.exe update-state -id review-pr-123 -set status=reviewing
 ```
 
 Merge richer state from a file:
 
 ```powershell
-python scripts\canvas.py update-state -id review-pr-123 -merge-file .\state-update.json
+skills\canvas\bin\canvas.exe update-state -id review-pr-123 -merge-file .\state-update.json
 ```
 
 Export a browser surface:
 
 ```powershell
-python scripts\canvas.py export-html -id review-pr-123
+skills\canvas\bin\canvas.exe export-html -id review-pr-123
 ```
 
 `export-html` writes the starter `canvas.html` shell. For an existing canvas with a customized HTML surface, inspect or back up `canvas.html` first; running this command can replace that custom page with the blank starter template.
@@ -168,14 +170,14 @@ python scripts\canvas.py export-html -id review-pr-123
 Archive when finished:
 
 ```powershell
-python scripts\canvas.py archive -id review-pr-123
+skills\canvas\bin\canvas.exe archive -id review-pr-123
 ```
 
 Start the local web server and open a canvas URL:
 
 ```powershell
-python scripts\canvas.py serve
-python scripts\canvas.py open -id review-pr-123
+skills\canvas\bin\canvas.exe serve
+skills\canvas\bin\canvas.exe open -id review-pr-123
 ```
 
 Without `-port`, `serve` binds to `127.0.0.1:12345`. Use `server-status` to inspect it and `server-stop` to stop it.
@@ -238,10 +240,16 @@ Examples include:
 
 ## Configuration
 
-Canvas uses Python on the path:
+Canvas uses the .NET SDK on the path to publish the file-based app:
 
 ```text
-python ./scripts/canvas.py
+dotnet publish scripts\canvas.cs
+```
+
+The runtime executable is:
+
+```text
+skills\canvas\bin\canvas.exe
 ```
 
 The plugin manifest is:
@@ -254,7 +262,7 @@ You can override the canvas storage root with `CANVAS_ROOT` or the CLI `root` ar
 
 ```powershell
 $env:CANVAS_ROOT = "D:\CanvasTest"
-python scripts\canvas.py list
+skills\canvas\bin\canvas.exe list
 ```
 
 ## Install Locally
@@ -306,14 +314,16 @@ The scenario suite writes a local report to:
 .canvas-test-output\report.html
 ```
 
-The validation stack checks Python compilation, unit tests, source and installed CLI startup, the plugin manifest, and fifteen end-to-end scenarios.
+The validation stack checks test helper compilation, unit tests, source and installed CLI startup, the plugin manifest, and fifteen end-to-end scenarios.
 
 ## Repository Layout
 
 ```text
 .codex-plugin/plugin.json  # Codex plugin manifest
 skills/canvas/SKILL.md     # Codex skill instructions
-src/                       # Core registry and CLI implementation
+skills/canvas/bin/         # JIT-published canvas.exe, ignored by git
+scripts/canvas.cs          # .NET file-based app entrypoint
+scripts/canvas/            # Included C# CLI, registry, and server sources
 scripts/                   # CLI wrapper and validation helpers
 templates/                 # Static browser surface and server index templates
 tests/                     # Automated tests

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 import tempfile
 import unittest
 import urllib.request
@@ -10,13 +9,39 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / "scripts" / "canvas.py"
+WRAPPER = ROOT / "scripts" / "canvas.ps1"
+CLI = ROOT / "skills" / "canvas" / "bin" / "canvas.exe"
 
 
 class CanvasCliTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(WRAPPER),
+                    "-root",
+                    tmp,
+                    "list",
+                ],
+                cwd=ROOT,
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+        if result.returncode != 0:
+            raise AssertionError(result.stdout + result.stderr)
+        if not CLI.exists():
+            raise AssertionError(f"Canvas executable was not published: {CLI}")
+
     def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, str(CLI), *args],
+            [str(CLI), *args],
             cwd=ROOT,
             check=False,
             text=True,

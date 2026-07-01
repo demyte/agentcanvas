@@ -1157,7 +1157,7 @@ def run(plugin_root: Path, output: Path) -> dict[str, Any]:
     summary = {
         "ok": all(item["passed"] for item in scenarios),
         "plugin_root": str(plugin_root),
-        "cli": [str(client.script)],
+        "cli": [str(client.exe)],
         "operations": sorted(names),
         "canvas_root": str(canvas_root),
         "report": str(report),

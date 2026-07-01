@@ -22,15 +22,16 @@ class PluginConfigTests(unittest.TestCase):
     def test_plugin_manifest_uses_bundled_cli(self) -> None:
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
-        self.assertTrue((ROOT / "scripts" / "canvas.py").exists())
-        self.assertTrue((ROOT / "src" / "canvas_cli.py").exists())
+        self.assertTrue((ROOT / "scripts" / "canvas.cs").exists())
+        self.assertTrue((ROOT / "scripts" / "canvas.ps1").exists())
+        self.assertIn("CLI", manifest["interface"]["capabilities"])
 
     def test_skill_documents_cli_contract_and_blank_stub_contract(self) -> None:
         skill = (ROOT / "skills" / "canvas" / "SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("Use the bundled Canvas CLI", skill)
-        self.assertIn("../../scripts/canvas.py", skill)
-        self.assertIn("python ../../scripts/canvas.py -?", skill)
+        self.assertIn("..\\..\\scripts\\canvas.ps1", skill)
+        self.assertIn("bin\\canvas.exe", skill)
         self.assertIn("init -id review-board -scope repo", skill)
         self.assertIn("update-state -id", skill)
         self.assertIn("-merge-file", skill)
@@ -114,8 +115,8 @@ class PluginConfigTests(unittest.TestCase):
         (root / ".codex-plugin").mkdir(parents=True, exist_ok=True)
         (root / "scripts").mkdir(parents=True, exist_ok=True)
         (root / "src").mkdir(parents=True, exist_ok=True)
-        (root / "scripts" / "canvas.py").write_text("print('{}')\n", encoding="utf-8")
-        (root / "src" / "canvas_cli.py").write_text("", encoding="utf-8")
+        (root / "scripts" / "canvas.cs").write_text("Console.WriteLine(\"{}\");\n", encoding="utf-8")
+        (root / "scripts" / "canvas.ps1").write_text("", encoding="utf-8")
         (root / ".codex-plugin" / "plugin.json").write_text(
             json.dumps({"version": version}),
             encoding="utf-8",
