@@ -1,77 +1,63 @@
 ---
 name: canvas
-description: "Use this whenever the user asks for a canvas, workspace, shared board, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas equivalent in Codex. Use the bundled Canvas CLI for creation, listing, reads, updates, validation, export, archival, thread association, and promotion records."
+description: "Canvas: use when the user asks for a canvas, shared board, workspace, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas in Codex. Use the bundled Canvas CLI for creation, listing, reading, updates, validation, export, archival, thread association, server management, and promotion records."
 ---
 
 # Canvas
 
-Use this skill to create and maintain semi-persistent Codex work surfaces.
+Create and maintain semi-persistent Codex work surfaces.
 
-A canvas is a working artifact for an active investigation, plan, review, dashboard, or decision workflow. It is not scratch, and it is not durable project truth until explicitly promoted.
+A canvas is a working artifact for an active investigation, plan, review, dashboard, or decision workflow. It is more durable than scratch, but it is not durable project truth until the user explicitly promotes it.
 
-## CLI Contract
+## Core Contract
 
-Use the bundled Canvas CLI for all canvas operations.
+The Canvas CLI owns storage, lifecycle, paths, collision handling, validation, export sidecars, server state, and archive movement. Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout.
 
-Resolve the CLI wrapper relative to this `SKILL.md`:
+Run the CLI wrapper relative to this `SKILL.md`:
 
 ```bash
 python ../../scripts/canvas.py <command> <arguments>
 ```
 
-If that relative path cannot be resolved from the installed skill location, locate the installed `canvas` plugin root and run its `scripts/canvas.py`. Assume `python` is on the path.
+If that path is unavailable from the installed skill location, locate the installed `canvas` plugin root and run `scripts/canvas.py`. Assume `python` is on the path.
 
-Use `--help`, `-h`, or `-?` for the full command reference:
+Use CLI verbs and arguments, not JSON payloads. For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>`.
+
+```bash
+python ../../scripts/canvas.py init -id review-board -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
+python ../../scripts/canvas.py update-state -id review-board -set status=reviewing
+python ../../scripts/canvas.py update-state -id review-board -merge-file .\state-update.json
+python ../../scripts/canvas.py validate -id review-board
+python ../../scripts/canvas.py open -id review-board
+```
+
+Use `--help`, `-h`, or `-?` for the command reference:
 
 ```bash
 python ../../scripts/canvas.py -?
 python ../../scripts/canvas.py init -?
 ```
 
-Use CLI verbs and arguments, not JSON payloads:
+Treat returned `storage_path`, `html_path`, `data_path`, and HTTP URLs as authoritative.
 
-```bash
-python ../../scripts/canvas.py init -id "review-board" -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
-python ../../scripts/canvas.py update-state -id "review-board" -set status=reviewing
-python ../../scripts/canvas.py validate -id "review-board"
-python ../../scripts/canvas.py export-html -id "review-board"
-python ../../scripts/canvas.py open -id "review-board"
-```
+## Operating Loop
 
-For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>` rather than putting raw JSON on the command line.
+1. Classify the canvas.
+   Decide purpose, scope, anchor, surface, capabilities, and possible promotion target. Completion criterion: the choices are specific enough to create or update without guessing where the work belongs.
 
-Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout. The CLI owns default storage, exact paths, collision handling, validation, archive movement, and export sidecars. Use returned `storage_path`, `html_path`, and `data_path` as authoritative.
+2. Create or read through the CLI.
+   For a new canvas, run `init`. For an existing canvas, use `list`, `list -thread-id <thread-id>`, or `get`. Pass domain-specific `-human-action`, `-agent-action`, `-promotion-target`, and `-associated-thread` values when they shape the workflow. Completion criterion: the CLI has returned the canvas metadata and paths you will use.
 
-Direct filesystem reads or edits are only for inspecting returned files, preserving user edits, or updating canvas-owned notes and custom surfaces after the CLI has created/exported the canvas.
+3. Update the canvas-owned artifacts.
+   Use `update-state` for structured state. Edit returned local files directly only for canvas-owned notes, README files, or a custom `canvas.html` surface. Preserve user edits. Completion criterion: the intended state, notes, and surface changes are present in the canvas folder.
 
-## Model
+4. Validate and inspect.
+   Run `validate` after material changes. When browser inspection or interaction helps, run `open -id <canvas-id>` and use the returned `http://127.0.0.1` URL in the Browser. Completion criterion: validation passes, or any remaining validation issue is reported explicitly.
 
-```text
-scratch
-  Temporary execution files. Safe to delete.
+5. Promote only on request.
+   Use `promote` to record explicit durable promotion references. It records the promotion; it does not write arbitrary destination files. Completion criterion: the user can tell what stayed as canvas work and what, if anything, became durable project state.
 
-canvas
-  Semi-persistent task state. Useful across turns or days, but not authoritative.
-
-memory/project state
-  Durable truth. Repo files, project docs, project memory, automation rules, published dashboards.
-```
-
-Default frame: `Canvas = a working set for an active line of thought.`
-
-## Storage
-
-Canvases belong in user-level external storage, not transient dated Codex session folders and not repo/project folders unless the user explicitly asks. Repo/project folders are usually anchors, not storage targets.
-
-Keep the logical anchor separate from storage:
-
-```text
-scope: repo
-anchor: D:\Projects\repo
-storage_path: returned by `init` or `get`
-```
-
-## Scope
+## Scope Reference
 
 Choose the narrowest useful scope:
 
@@ -80,100 +66,48 @@ Choose the narrowest useful scope:
 - `thread`: work intentionally tied to one conversation.
 - `user`: cross-project dashboards, reusable templates, personal or household planning.
 
-Prefer `repo` or `project` when a real anchor exists. Use `user` for personal planning, household planning, reusable trackers, and casual "create me a canvas for..." requests when there is no real repo or project folder anchor. Use `thread` only when the user explicitly asks for a thread-scoped canvas or the work is meaningless outside the conversation.
+Prefer `repo` or `project` when a real anchor exists. Use `user` for personal planning, household planning, reusable trackers, and casual "create me a canvas for..." requests when no repo or project anchor is real. Use `thread` only when the user explicitly asks for a thread-scoped canvas or the work is meaningless outside the conversation.
 
-Do not treat a delegated source thread id or the current Codex thread id as an anchor by itself. Thread identifiers belong in `associatedThreads` only when available and useful.
+Thread identifiers are associations, not anchors. Store them with `-associated-thread` during `init` or `associate-thread` afterward.
 
-## Creation
-
-Before creating a canvas, determine:
-
-1. Purpose: planning, research, review, tracking, editing, dashboarding, artifact generation, or decision support.
-2. Anchor: repo, project, thread, or user.
-3. Surface: Markdown, Markdown plus JSON, static HTML, or local app.
-4. Capabilities: what the user can do and what Codex can reliably update.
-5. Promotion path: where results may go if explicitly promoted.
-
-If intent is clear, proceed without asking. Ask only when the wrong anchor or storage choice would create meaningful cleanup or confusion.
-
-Create with `init`. Pass domain-specific `-human-action`, `-agent-action`, and `-promotion-target` flags for shaped workflows. Use defaults only for generic canvases. For thread-scoped canvases, pass known thread identifiers with `-associated-thread`; use `associate-thread` to connect an existing canvas to another thread.
-
-## Surfaces
+## Surface Reference
 
 Use the lightest surface that fits:
 
-```text
-Markdown
-  Plans, notes, specs, reviews, decision logs.
+- Markdown: plans, notes, specs, reviews, decision logs.
+- Markdown plus JSON: repeatedly updated structured state.
+- Static HTML plus JavaScript/CDN libraries: filters, charts, diagrams, drag/drop, tables, maps, calendars, and other simple interaction.
+- Vite plus React, TypeScript, Tailwind, and shadcn/ui: complex static canvas apps.
+- Next.js plus Tailwind and shadcn/ui: only when server behavior, routing, API routes, auth, or similar features are genuinely needed.
 
-Markdown + JSON
-  Repeatedly updated structured state.
-
-Static HTML + JS/CDN libraries
-  Simple interaction: filters, charts, diagrams, drag/drop, tables, maps, calendars.
-
-Vite + React + TypeScript + Tailwind + shadcn/ui
-  Complex canvas apps that still build to static files.
-
-Next.js + Tailwind + shadcn/ui
-  Only when server behavior, routing, API routes, auth, or similar features are genuinely needed.
-```
-
-If the `frontend-design` skill is installed and the canvas needs a new or materially revised browser UI, use that skill before designing or editing the UI. A request for a planner, board, dashboard, tracker, map, calendar, or other usable visual workspace is enough to justify a canvas-specific UI.
+If `frontend-design` is installed and the canvas needs a new or materially revised browser UI, use that skill before designing or editing the UI. A request for a planner, board, dashboard, tracker, map, calendar, or other usable visual workspace is enough to justify a canvas-specific UI.
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
-Static HTML surfaces must be real HTML pages on disk. Start new browser surfaces with `export-html`, which creates the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
+Static HTML surfaces must be real HTML pages on disk. Do not generate scripts whose main job is to write the HTML later.
 
-Treat `export-html` as a starter/regeneration command, not a harmless refresh. It can overwrite an existing customized `canvas.html` with the blank starter template. Before running `export-html`, inspect the existing `canvas.html` if it exists. If it has a non-empty `<body>`, canvas-specific JavaScript/CSS, or a custom surface marker, preserve it: copy or diff it first, and do not run `export-html` unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
+## Export Guard
+
+Use `export-html` to create or intentionally regenerate the starter HTML shell and `canvas-data.js` sidecar. The shared starter template intentionally has no `<body>` content; do not add generic UI to `templates/canvas-viewer.html`.
+
+`export-html` is not a safe refresh command for an existing customized `canvas.html`: it can overwrite the custom UI with the blank starter shell. Before running it, inspect `canvas.html` if it exists. If it has a non-empty `<body>`, canvas-specific CSS/JS, or a custom surface marker, preserve it first and run `export-html` only when intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
+
+For existing custom HTML canvases, the default update flow is: edit `state.json`, `notes.md`, and/or `canvas.html`; run `validate`; reload the HTTP URL in the Browser. Do not run `export-html`.
 
 ## Local Server
 
-When the Codex Browser needs to inspect or control a canvas, prefer the local Canvas HTTP server over opening `file://` paths. The Browser can interact with pages served from `http://127.0.0.1`, while file-based pages may not be controllable.
-
-Use the CLI to launch and manage the server:
+Prefer the Canvas HTTP server over `file://` paths for Browser inspection. Pages served from `http://127.0.0.1` are easier for Codex Browser tooling to inspect and control.
 
 ```bash
 python ../../scripts/canvas.py serve
 python ../../scripts/canvas.py server-status
 python ../../scripts/canvas.py server-stop
-python ../../scripts/canvas.py open -id "review-board"
+python ../../scripts/canvas.py open -id review-board
 ```
 
-`serve` binds to `127.0.0.1:12345` when no port is passed. `open -id <canvas-id>` starts the server if needed and returns the canvas URL. Use that returned HTTP URL in the Browser. The root URL shows the Canvas index, backed by `.server.json`, with searchable and sortable cards for canvases.
+`serve` binds to `127.0.0.1:12345` unless `-port` is passed. `open -id <canvas-id>` starts the server if needed and returns the canvas URL. The root URL shows a searchable and sortable Canvas index backed by `.server.json`.
 
-Existing CLI mutations update `.server.json` when it exists. If you edit canvas files directly and the index appears stale, run `server-status` or any relevant CLI update/validate flow to refresh server state before relying on the index.
-
-## Promotion
-
-A canvas can inform durable state, but is not durable state until explicitly promoted.
-
-Promotion examples:
-
-- repo documentation
-- project memory
-- project dashboard or hub/catalog entry
-- static-site catalog
-- issue or PR comment
-- final report
-- source/tests/docs changes
-
-Use `promote` to record explicit promotion targets and references. It records the promotion; it does not write arbitrary destination files by itself.
-
-## Update Loop
-
-When updating an existing canvas:
-
-1. Use `get` to read metadata.
-2. Preserve user edits.
-3. Use `update-state` for structured state changes.
-4. Edit returned local files directly when `notes.md`, README, or a custom `canvas.html` surface needs direct file work.
-5. Use `validate` after material changes.
-6. Use `open -id <canvas-id>` and reload the returned HTTP URL in the Browser when browser inspection helps.
-7. Do not run `export-html` for an existing customized HTML canvas unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
-8. Report changed files, storage path, promotion status, and how to continue.
-
-Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.
+CLI mutations update `.server.json` when it exists. If direct file edits make the index stale, run `server-status` or a relevant CLI update/validate flow before relying on the index.
 
 ## Response
 
