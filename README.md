@@ -187,7 +187,7 @@ Without `-port`, `serve` binds to `127.0.0.1:12345`. Use `server-status` to insp
 Canvas exports static HTML starter pages on disk. The HTML file is copied from the checked-in blank template at:
 
 ```text
-templates/canvas-viewer.html
+skills/canvas/templates/canvas-viewer.html
 ```
 
 Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not the final surface.
@@ -321,10 +321,10 @@ The validation stack checks test helper compilation, unit tests, source and inst
 ```text
 .codex-plugin/plugin.json  # Codex plugin manifest
 skills/canvas/SKILL.md     # Codex skill instructions
+skills/canvas/templates/   # Static browser surface and server index templates
 skills/canvas/bin/         # JIT-published canvas.exe, ignored by git
 scripts/canvas.cs          # .NET file-based app entrypoint
 scripts/canvas/            # Included C# CLI, registry, and server sources
 scripts/                   # CLI wrapper and validation helpers
-templates/                 # Static browser surface and server index templates
 tests/                     # Automated tests
 ```

@@ -253,7 +253,7 @@ internal static class CanvasServer
 
         app.MapGet("/", async context =>
         {
-            await ServeFileAsync(context, Path.Combine(PathUtil.PluginRoot(), "templates", "server-index.html"), "text/html; charset=utf-8");
+            await ServeFileAsync(context, Path.Combine(PathUtil.PluginRoot(), "skills", "canvas", "templates", "server-index.html"), "text/html; charset=utf-8");
         });
         app.MapGet("/server-state.json", () => Results.Json(WriteServerState(registry, ActualPort(app)), JsonUtil.Options));
         app.MapGet("/api/canvases", () =>

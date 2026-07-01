@@ -94,7 +94,7 @@ Static HTML surfaces must be real HTML pages on disk. Do not generate scripts wh
 
 ## Export Guard
 
-Use `export-html` to create or intentionally regenerate the starter HTML shell and `canvas-data.js` sidecar. The shared starter template intentionally has no `<body>` content; do not add generic UI to `templates/canvas-viewer.html`.
+Use `export-html` to create or intentionally regenerate the starter HTML shell and `canvas-data.js` sidecar. The shared starter template intentionally has no `<body>` content; do not add generic UI to this skill's `templates/canvas-viewer.html`.
 
 `export-html` is not a safe refresh command for an existing customized `canvas.html`: it can overwrite the custom UI with the blank starter shell. Before running it, inspect `canvas.html` if it exists. If it has a non-empty `<body>`, canvas-specific CSS/JS, or a custom surface marker, preserve it first and run `export-html` only when intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
 

@@ -425,7 +425,7 @@ internal sealed class CanvasRegistry
         }
         outputPath = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-        File.Copy(Path.Combine(PathUtil.PluginRoot(), "templates", "canvas-viewer.html"), outputPath, overwrite: true);
+        File.Copy(Path.Combine(PathUtil.PluginRoot(), "skills", "canvas", "templates", "canvas-viewer.html"), outputPath, overwrite: true);
         var dataPath = Path.Combine(Path.GetDirectoryName(outputPath)!, "canvas-data.js");
         File.WriteAllText(
             dataPath,
