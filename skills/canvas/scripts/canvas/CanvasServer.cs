@@ -142,12 +142,55 @@ internal static class CanvasServer
         }
     }
 
+    internal static async Task<JsonObject?> ReadLiveServerStateAtPortAsync(int port)
+    {
+        if (port <= 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1.5) };
+            using var response = await client.GetAsync($"http://{Host}:{port}/server-state.json");
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var state = JsonNode.Parse(json) as JsonObject;
+            return state?["kind"]?.GetValue<string>() == "canvas-server" ? state : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static JsonObject AlreadyRunningResponse(JsonObject state)
+    {
+        var response = state.DeepClone().AsObject();
+        var url = response.StringValue("url") ?? $"http://{Host}:{response["port"]?.GetValue<int>() ?? CanvasRegistry.DefaultServerPort}/";
+        response["running"] = true;
+        response["already_running"] = true;
+        response["message"] = $"Canvas server is already running at {url}";
+        return response;
+    }
+
     internal static async Task<JsonObject> StartServerProcessAsync(CanvasRegistry registry, string executable, int port)
     {
         var state = ReadServerState(registry);
         if (state is not null && await IsServerLiveAsync(registry))
         {
-            return state;
+            return AlreadyRunningResponse(state);
+        }
+
+        var livePortState = await ReadLiveServerStateAtPortAsync(port);
+        if (livePortState is not null)
+        {
+            JsonUtil.WriteObject(ServerStatePath(registry), livePortState);
+            return AlreadyRunningResponse(livePortState);
         }
 
         var args = $"-root \"{registry.Root}\" serve -port {port} --foreground";

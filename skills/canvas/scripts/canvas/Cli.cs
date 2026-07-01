@@ -199,6 +199,13 @@ Examples:
         var port = int.TryParse(Value(options, "port"), out var parsed) ? parsed : CanvasRegistry.DefaultServerPort;
         if (options.ContainsKey("foreground"))
         {
+            var liveState = await CanvasServer.ReadLiveServerStateAtPortAsync(port);
+            if (liveState is not null)
+            {
+                JsonUtil.WriteStdout(CanvasServer.AlreadyRunningResponse(liveState));
+                return 0;
+            }
+
             await CanvasServer.RunForegroundServerAsync(registry, port);
             return 0;
         }
