@@ -60,7 +60,7 @@ Use the lightest surface that fits, but do not reduce an implied visual workspac
 
 If the user asks for a planner, board, dashboard, tracker, calendar, map, or other usable workspace, create or update both the structured state and a real `canvas.html` UI unless the user explicitly asks for notes-only or markdown-only output.
 
-If `frontend-design` is installed and the canvas needs a new or materially revised browser UI, use that skill before designing or editing the UI.
+For a new or materially revised browser UI, use the strongest available design skill before designing or editing the UI: prefer `impeccable`; if it is not available, use `frontend-design`; if neither is available, still build the UI and inspect it in Browser.
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
