@@ -186,7 +186,9 @@ internal static class CanvasServer
         while (DateTimeOffset.UtcNow < deadline)
         {
             lastState = ReadServerState(registry);
-            if (lastState is not null && await IsServerLiveAsync(registry))
+            if (lastState is not null
+                && lastState["running"]?.GetValue<bool>() == true
+                && await IsServerLiveAsync(registry))
             {
                 return lastState;
             }
