@@ -35,6 +35,7 @@ python ../../scripts/canvas.py init -id "review-board" -scope repo -anchor "D:\P
 python ../../scripts/canvas.py update-state -id "review-board" -set status=reviewing
 python ../../scripts/canvas.py validate -id "review-board"
 python ../../scripts/canvas.py export-html -id "review-board"
+python ../../scripts/canvas.py open -id "review-board"
 ```
 
 For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>` rather than putting raw JSON on the command line.
@@ -126,6 +127,23 @@ Static HTML surfaces must be real HTML pages on disk. Start new browser surfaces
 
 Treat `export-html` as a starter/regeneration command, not a harmless refresh. It can overwrite an existing customized `canvas.html` with the blank starter template. Before running `export-html`, inspect the existing `canvas.html` if it exists. If it has a non-empty `<body>`, canvas-specific JavaScript/CSS, or a custom surface marker, preserve it: copy or diff it first, and do not run `export-html` unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
 
+## Local Server
+
+When the Codex Browser needs to inspect or control a canvas, prefer the local Canvas HTTP server over opening `file://` paths. The Browser can interact with pages served from `http://127.0.0.1`, while file-based pages may not be controllable.
+
+Use the CLI to launch and manage the server:
+
+```bash
+python ../../scripts/canvas.py serve
+python ../../scripts/canvas.py server-status
+python ../../scripts/canvas.py server-stop
+python ../../scripts/canvas.py open -id "review-board"
+```
+
+`serve` binds to `127.0.0.1:12345` when no port is passed. `open -id <canvas-id>` starts the server if needed and returns the canvas URL. Use that returned HTTP URL in the Browser. The root URL shows the Canvas index, backed by `.server.json`, with searchable and sortable cards for canvases.
+
+Existing CLI mutations update `.server.json` when it exists. If you edit canvas files directly and the index appears stale, run `server-status` or any relevant CLI update/validate flow to refresh server state before relying on the index.
+
 ## Promotion
 
 A canvas can inform durable state, but is not durable state until explicitly promoted.
@@ -151,7 +169,7 @@ When updating an existing canvas:
 3. Use `update-state` for structured state changes.
 4. Edit returned local files directly when `notes.md`, README, or a custom `canvas.html` surface needs direct file work.
 5. Use `validate` after material changes.
-6. Reload the open browser tab when browser inspection helps.
+6. Use `open -id <canvas-id>` and reload the returned HTTP URL in the Browser when browser inspection helps.
 7. Do not run `export-html` for an existing customized HTML canvas unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
 8. Report changed files, storage path, promotion status, and how to continue.
 

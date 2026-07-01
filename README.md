@@ -96,6 +96,10 @@ Canvas bundles a Python CLI with command verbs:
 | `associate-thread` | Attach another Codex thread id to a canvas. |
 | `promote` | Record that canvas output was explicitly promoted somewhere durable. |
 | `export-html` | Export a static `canvas.html` browser surface. |
+| `serve` | Start the local Canvas HTTP server. |
+| `open` | Start the server if needed and return a canvas HTTP URL. |
+| `server-status` | Show local Canvas HTTP server status. |
+| `server-stop` | Stop the local Canvas HTTP server. |
 
 Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter with `list -thread-id <thread-id>`.
 
@@ -167,6 +171,15 @@ Archive when finished:
 python scripts\canvas.py archive -id review-pr-123
 ```
 
+Start the local web server and open a canvas URL:
+
+```powershell
+python scripts\canvas.py serve
+python scripts\canvas.py open -id review-pr-123
+```
+
+Without `-port`, `serve` binds to `127.0.0.1:12345`. Use `server-status` to inspect it and `server-stop` to stop it.
+
 ## Browser Surfaces
 
 Canvas exports static HTML starter pages on disk. The HTML file is copied from the checked-in blank template at:
@@ -178,6 +191,14 @@ templates/canvas-viewer.html
 Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not the final surface.
 
 For existing customized HTML canvases, the normal update flow is to edit `state.json`, `notes.md`, and/or the custom `canvas.html`, run `validate`, then reload the open browser tab if possible. Do not run `export-html` as a routine refresh unless you mean to regenerate the starter shell or you will immediately restore/reapply the custom surface.
+
+For Codex Browser inspection and control, prefer the local Canvas server instead of opening `file://` pages. `open -id <canvas-id>` starts the server if needed and returns a URL like:
+
+```text
+http://127.0.0.1:12345/canvas/review-pr-123/
+```
+
+The server root at `http://127.0.0.1:12345/` serves a searchable Canvas index from `.server.json`. It shows one card per canvas and supports local sorting by name or last modified time.
 
 For planners, boards, dashboards, trackers, maps, calendars, or artifact workspaces, build the actual canvas-specific body in that canvas folder after export. Keep the shared template blank.
 
@@ -294,6 +315,6 @@ The validation stack checks Python compilation, unit tests, source and installed
 skills/canvas/SKILL.md     # Codex skill instructions
 src/                       # Core registry and CLI implementation
 scripts/                   # CLI wrapper and validation helpers
-templates/                 # Static browser surface template
+templates/                 # Static browser surface and server index templates
 tests/                     # Automated tests
 ```

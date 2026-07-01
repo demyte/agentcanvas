@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.request
 from pathlib import Path
 
 
@@ -167,10 +168,60 @@ class CanvasCliTests(unittest.TestCase):
         self.assertIn("-id", command_help.stdout)
         self.assertIn("-scope", command_help.stdout)
 
+    def test_server_lifecycle_routes_and_open(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.run_json("-root", tmp, "init", "-id", "Alpha Board", "-scope", "user", "-purpose", "Alpha planning")
+            self.run_json("-root", tmp, "init", "-id", "Beta Board", "-scope", "user", "-purpose", "Beta planning")
+            self.run_json("-root", tmp, "export-html", "-id", "alpha-board")
+            state: dict[str, object] | None = None
+            try:
+                state = self.run_json("-root", tmp, "serve", "-port", "0")
+                self.assertTrue(state["running"])
+                port = int(state["port"])
+                self.assertGreater(port, 0)
+                base = f"http://127.0.0.1:{port}"
+
+                index_html = self.fetch_text(f"{base}/")
+                self.assertIn("Canvas index", index_html)
+                self.assertIn("/server-state.json", index_html)
+
+                server_state = json.loads(self.fetch_text(f"{base}/server-state.json"))
+                self.assertEqual([item["id"] for item in server_state["canvases"]], ["alpha-board", "beta-board"])
+                self.assertEqual(server_state["port"], port)
+
+                canvases = json.loads(self.fetch_text(f"{base}/api/canvases"))
+                self.assertEqual([item["id"] for item in canvases], ["alpha-board", "beta-board"])
+
+                alpha_state = json.loads(self.fetch_text(f"{base}/api/canvas/alpha-board/state"))
+                self.assertEqual(alpha_state["metadata"]["id"], "alpha-board")
+
+                alpha_html = self.fetch_text(f"{base}/canvas/alpha-board/")
+                self.assertIn("canvas-data.js", alpha_html)
+
+                opened = self.run_json("-root", tmp, "open", "-id", "alpha-board")
+                self.assertEqual(opened["url"], f"{base}/canvas/alpha-board/")
+
+                self.run_json("-root", tmp, "update-state", "-id", "alpha-board", "-set", "status=changed")
+                refreshed_state = json.loads((Path(tmp) / ".server.json").read_text(encoding="utf-8"))
+                self.assertEqual(refreshed_state["port"], port)
+                self.assertEqual([item["id"] for item in refreshed_state["canvases"]], ["alpha-board", "beta-board"])
+
+                status = self.run_json("-root", tmp, "server-status")
+                self.assertTrue(status["running"])
+            finally:
+                if state is not None:
+                    stopped = self.run_json("-root", tmp, "server-stop")
+                    self.assertFalse(stopped["running"])
+
     def run_json(self, *args: str) -> dict[str, object] | list[dict[str, object]]:
         result = self.run_cli(*args)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout)
+
+    @staticmethod
+    def fetch_text(url: str) -> str:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            return response.read().decode("utf-8")
 
 
 if __name__ == "__main__":
