@@ -16,32 +16,32 @@ The Canvas CLI owns storage, lifecycle, paths, collision handling, validation, e
 The published executable lives under this skill:
 
 ```powershell
-.\bin\canvas.exe <command> <arguments>
+.\cli\canvas.exe <command> <arguments>
 ```
 
-If `bin\canvas.exe` is missing or older than the bundled source, publish it just in time through the wrapper relative to this `SKILL.md`:
+If `cli\canvas.exe` is missing or older than the bundled source, publish it just in time through the wrapper relative to this `SKILL.md`:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File ..\..\scripts\canvas.ps1 <command> <arguments>
 ```
 
-The wrapper publishes the .NET file-based app from `..\..\scripts\canvas.cs` into `bin\canvas.exe`, then runs it. Assume `dotnet` is on the path.
+The wrapper publishes the .NET file-based app from `..\..\scripts\canvas.cs` into `cli\canvas.exe`, then runs it. Assume `dotnet` is on the path.
 
 Use CLI verbs and arguments, not JSON payloads. For structured state changes, write a temporary JSON object file and pass it with `-merge-file <path>`.
 
 ```bash
-.\bin\canvas.exe init -id review-board -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
-.\bin\canvas.exe update-state -id review-board -set status=reviewing
-.\bin\canvas.exe update-state -id review-board -merge-file .\state-update.json
-.\bin\canvas.exe validate -id review-board
-.\bin\canvas.exe open -id review-board
+.\cli\canvas.exe init -id review-board -scope repo -anchor "D:\Projects\repo" -purpose "Track review work"
+.\cli\canvas.exe update-state -id review-board -set status=reviewing
+.\cli\canvas.exe update-state -id review-board -merge-file .\state-update.json
+.\cli\canvas.exe validate -id review-board
+.\cli\canvas.exe open -id review-board
 ```
 
 Use `--help`, `-h`, or `-?` for the command reference:
 
 ```bash
-.\bin\canvas.exe -?
-.\bin\canvas.exe init -?
+.\cli\canvas.exe -?
+.\cli\canvas.exe init -?
 ```
 
 Treat returned `storage_path`, `html_path`, `data_path`, and HTTP URLs as authoritative.
@@ -105,10 +105,10 @@ For existing custom HTML canvases, the default update flow is: edit `state.json`
 Prefer the Canvas HTTP server over `file://` paths for Browser inspection. Pages served from `http://127.0.0.1` are easier for Codex Browser tooling to inspect and control.
 
 ```bash
-.\bin\canvas.exe serve
-.\bin\canvas.exe server-status
-.\bin\canvas.exe server-stop
-.\bin\canvas.exe open -id review-board
+.\cli\canvas.exe serve
+.\cli\canvas.exe server-status
+.\cli\canvas.exe server-stop
+.\cli\canvas.exe open -id review-board
 ```
 
 `serve` binds to `127.0.0.1:12345` unless `-port` is passed. `open -id <canvas-id>` starts the server if needed and returns the canvas URL. The root URL shows a searchable and sortable Canvas index backed by `.server.json`.

@@ -9,8 +9,8 @@ $scriptPath = $MyInvocation.MyCommand.Path
 $scriptsDir = Split-Path -Parent $scriptPath
 $root = Split-Path -Parent $scriptsDir
 $source = Join-Path $scriptsDir 'canvas.cs'
-$binDir = Join-Path $root 'skills\canvas\bin'
-$exe = Join-Path $binDir 'canvas.exe'
+$cliDir = Join-Path $root 'skills\canvas\cli'
+$exe = Join-Path $cliDir 'canvas.exe'
 
 function Get-LatestSourceWriteTime {
     $files = @(Get-Item -LiteralPath $source)
@@ -29,10 +29,10 @@ if (-not $needsBuild) {
 }
 
 if ($needsBuild) {
-    New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-    dotnet publish $source --configuration Release --output $binDir --nologo --verbosity quiet `
+    New-Item -ItemType Directory -Force -Path $cliDir | Out-Null
+    dotnet publish $source --configuration Release --output $cliDir --nologo --verbosity quiet `
         -p:DebugType=none -p:DebugSymbols=false -p:IsTransformWebConfigDisabled=true | Out-Null
-    Get-ChildItem -LiteralPath $binDir -File |
+    Get-ChildItem -LiteralPath $cliDir -File |
         Where-Object { $_.Name -ne 'canvas.exe' } |
         Remove-Item -Force
 }
