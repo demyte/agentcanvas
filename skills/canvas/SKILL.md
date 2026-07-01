@@ -122,7 +122,9 @@ If the `frontend-design` skill is installed and the canvas needs a new or materi
 
 Allowed CDN libraries for static pages include Chart.js, Mermaid, SortableJS, Marked, DOMPurify, Fuse.js, Tabulator/Grid.js, Leaflet, and FullCalendar.
 
-Static HTML surfaces must be real HTML pages on disk. Start with `export-html`, which creates or refreshes the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
+Static HTML surfaces must be real HTML pages on disk. Start new browser surfaces with `export-html`, which creates the canvas-owned `canvas.html` starter page and `canvas-data.js` sidecar. The shared exported template intentionally has no body. Do not add generic UI to `templates/canvas-viewer.html`. After export, build or update the canvas-specific `canvas.html` body when the request implies a usable surface.
+
+Treat `export-html` as a starter/regeneration command, not a harmless refresh. It can overwrite an existing customized `canvas.html` with the blank starter template. Before running `export-html`, inspect the existing `canvas.html` if it exists. If it has a non-empty `<body>`, canvas-specific JavaScript/CSS, or a custom surface marker, preserve it: copy or diff it first, and do not run `export-html` unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
 
 ## Promotion
 
@@ -147,10 +149,11 @@ When updating an existing canvas:
 1. Use `get` to read metadata.
 2. Preserve user edits.
 3. Use `update-state` for structured state changes.
-4. Edit returned local files only when notes, README, or custom surfaces need direct file work.
+4. Edit returned local files directly when `notes.md`, README, or a custom `canvas.html` surface needs direct file work.
 5. Use `validate` after material changes.
-6. Refresh with `export-html` when browser inspection helps.
-7. Report changed files, storage path, promotion status, and how to continue.
+6. Reload the open browser tab when browser inspection helps.
+7. Do not run `export-html` for an existing customized HTML canvas unless intentionally regenerating the starter shell or immediately restoring/reapplying the custom surface.
+8. Report changed files, storage path, promotion status, and how to continue.
 
 Avoid rebuilding from scratch unless the user asks or the current structure no longer fits.
 

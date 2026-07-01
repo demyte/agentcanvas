@@ -159,6 +159,8 @@ Export a browser surface:
 python scripts\canvas.py export-html -id review-pr-123
 ```
 
+`export-html` writes the starter `canvas.html` shell. For an existing canvas with a customized HTML surface, inspect or back up `canvas.html` first; running this command can replace that custom page with the blank starter template.
+
 Archive when finished:
 
 ```powershell
@@ -174,6 +176,8 @@ templates/canvas-viewer.html
 ```
 
 Canvas-specific data is written beside it as `canvas-data.js`. The default template intentionally has no body; it only loads the default browser libraries and the local data sidecar. Treat it as a creation stub, not the final surface.
+
+For existing customized HTML canvases, the normal update flow is to edit `state.json`, `notes.md`, and/or the custom `canvas.html`, run `validate`, then reload the open browser tab if possible. Do not run `export-html` as a routine refresh unless you mean to regenerate the starter shell or you will immediately restore/reapply the custom surface.
 
 For planners, boards, dashboards, trackers, maps, calendars, or artifact workspaces, build the actual canvas-specific body in that canvas folder after export. Keep the shared template blank.
 
