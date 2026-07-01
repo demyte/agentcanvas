@@ -7,10 +7,9 @@ $ErrorActionPreference = 'Stop'
 
 $scriptPath = $MyInvocation.MyCommand.Path
 $scriptsDir = Split-Path -Parent $scriptPath
-$root = Split-Path -Parent $scriptsDir
+$root = Resolve-Path -LiteralPath (Join-Path $scriptsDir '..\..\..')
 $source = Join-Path $scriptsDir 'canvas.cs'
-$cliDir = Join-Path $root 'skills\canvas\cli'
-$exe = Join-Path $cliDir 'canvas.exe'
+$exe = Join-Path $scriptsDir 'canvas.exe'
 
 function Get-LatestSourceWriteTime {
     $files = @(Get-Item -LiteralPath $source)
@@ -29,12 +28,12 @@ if (-not $needsBuild) {
 }
 
 if ($needsBuild) {
-    New-Item -ItemType Directory -Force -Path $cliDir | Out-Null
-    dotnet publish $source --configuration Release --output $cliDir --nologo --verbosity quiet `
+    $publishDir = Join-Path ([System.IO.Path]::GetTempPath()) ('canvas-publish-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+    dotnet publish $source --configuration Release --output $publishDir --nologo --verbosity quiet `
         -p:DebugType=none -p:DebugSymbols=false -p:IsTransformWebConfigDisabled=true | Out-Null
-    Get-ChildItem -LiteralPath $cliDir -File |
-        Where-Object { $_.Name -ne 'canvas.exe' } |
-        Remove-Item -Force
+    Copy-Item -LiteralPath (Join-Path $publishDir 'canvas.exe') -Destination $exe -Force
+    Remove-Item -LiteralPath $publishDir -Recurse -Force
 }
 
 & $exe @CanvasArgs

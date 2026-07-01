@@ -11,4 +11,4 @@ tmp/
 coverage.xml
 .coverage
 .canvas-test-output/
-skills/canvas/cli/
+skills/canvas/scripts/canvas.exe

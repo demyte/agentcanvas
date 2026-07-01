@@ -106,27 +106,27 @@ Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a
 Run operations through:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\canvas.ps1 init -id "review-board" -scope repo -anchor "D:\Projects\repo"
-skills\canvas\cli\canvas.exe list -lifecycle active
-skills\canvas\cli\canvas.exe validate -id "review-board"
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\canvas\scripts\canvas.ps1 init -id "review-board" -scope repo -anchor "D:\Projects\repo"
+skills\canvas\scripts\canvas.exe list -lifecycle active
+skills\canvas\scripts\canvas.exe validate -id "review-board"
 ```
 
-The PowerShell wrapper publishes `scripts\canvas.cs` just in time to `skills\canvas\cli\canvas.exe` when the executable is missing or stale. The `cli` folder is ignored by git.
+The PowerShell wrapper publishes `skills\canvas\scripts\canvas.cs` just in time to `skills\canvas\scripts\canvas.exe` when the executable is missing or stale. The generated executable is ignored by git.
 
 ## CLI Usage
 
 The local CLI is useful for testing, inspection, and direct operations:
 
 ```powershell
-skills\canvas\cli\canvas.exe --help
-skills\canvas\cli\canvas.exe -?
-skills\canvas\cli\canvas.exe init -?
+skills\canvas\scripts\canvas.exe --help
+skills\canvas\scripts\canvas.exe -?
+skills\canvas\scripts\canvas.exe init -?
 ```
 
 Create a repo-scoped canvas:
 
 ```powershell
-skills\canvas\cli\canvas.exe init -id review-pr-123 `
+skills\canvas\scripts\canvas.exe init -id review-pr-123 `
   -scope repo `
   -anchor D:\Projects\my-repo `
   -title "PR 123 Review" `
@@ -136,7 +136,7 @@ skills\canvas\cli\canvas.exe init -id review-pr-123 `
 Create a thread-scoped canvas:
 
 ```powershell
-skills\canvas\cli\canvas.exe init -id thread-brief `
+skills\canvas\scripts\canvas.exe init -id thread-brief `
   -scope thread `
   -associated-thread <thread-id>
 ```
@@ -144,25 +144,25 @@ skills\canvas\cli\canvas.exe init -id thread-brief `
 List canvases associated with a thread:
 
 ```powershell
-skills\canvas\cli\canvas.exe list -thread-id <thread-id>
+skills\canvas\scripts\canvas.exe list -thread-id <thread-id>
 ```
 
 Update structured state:
 
 ```powershell
-skills\canvas\cli\canvas.exe update-state -id review-pr-123 -set status=reviewing
+skills\canvas\scripts\canvas.exe update-state -id review-pr-123 -set status=reviewing
 ```
 
 Merge richer state from a file:
 
 ```powershell
-skills\canvas\cli\canvas.exe update-state -id review-pr-123 -merge-file .\state-update.json
+skills\canvas\scripts\canvas.exe update-state -id review-pr-123 -merge-file .\state-update.json
 ```
 
 Export a browser surface:
 
 ```powershell
-skills\canvas\cli\canvas.exe export-html -id review-pr-123
+skills\canvas\scripts\canvas.exe export-html -id review-pr-123
 ```
 
 `export-html` writes the starter `canvas.html` shell. For an existing canvas with a customized HTML surface, inspect or back up `canvas.html` first; running this command can replace that custom page with the blank starter template.
@@ -170,14 +170,14 @@ skills\canvas\cli\canvas.exe export-html -id review-pr-123
 Archive when finished:
 
 ```powershell
-skills\canvas\cli\canvas.exe archive -id review-pr-123
+skills\canvas\scripts\canvas.exe archive -id review-pr-123
 ```
 
 Start the local web server and open a canvas URL:
 
 ```powershell
-skills\canvas\cli\canvas.exe serve
-skills\canvas\cli\canvas.exe open -id review-pr-123
+skills\canvas\scripts\canvas.exe serve
+skills\canvas\scripts\canvas.exe open -id review-pr-123
 ```
 
 Without `-port`, `serve` binds to `127.0.0.1:12345`. Use `server-status` to inspect it and `server-stop` to stop it.
@@ -243,13 +243,13 @@ Examples include:
 Canvas uses the .NET SDK on the path to publish the file-based app:
 
 ```text
-dotnet publish scripts\canvas.cs
+dotnet publish skills\canvas\scripts\canvas.cs
 ```
 
 The runtime executable is:
 
 ```text
-skills\canvas\cli\canvas.exe
+skills\canvas\scripts\canvas.exe
 ```
 
 The plugin manifest is:
@@ -262,7 +262,7 @@ You can override the canvas storage root with `CANVAS_ROOT` or the CLI `root` ar
 
 ```powershell
 $env:CANVAS_ROOT = "D:\CanvasTest"
-skills\canvas\cli\canvas.exe list
+skills\canvas\scripts\canvas.exe list
 ```
 
 ## Install Locally
@@ -322,9 +322,8 @@ The validation stack checks test helper compilation, unit tests, source and inst
 .codex-plugin/plugin.json  # Codex plugin manifest
 skills/canvas/SKILL.md     # Codex skill instructions
 skills/canvas/templates/   # Static browser surface and server index templates
-skills/canvas/cli/         # JIT-published canvas.exe, ignored by git
-scripts/canvas.cs          # .NET file-based app entrypoint
-scripts/canvas/            # Included C# CLI, registry, and server sources
-scripts/                   # CLI wrapper and validation helpers
+skills/canvas/scripts/     # File-based app source, wrapper, and generated canvas.exe
+skills/canvas/scripts/canvas.cs
+skills/canvas/scripts/canvas/
 tests/                     # Automated tests
 ```
