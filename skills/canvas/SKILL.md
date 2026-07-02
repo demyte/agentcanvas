@@ -1,6 +1,6 @@
 ---
 name: canvas
-description: "Canvas: use when the user asks for a canvas, shared board, workspace, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas in Codex. Use the bundled Canvas CLI for creation, listing, reading, updates, validation, export, archival, thread association, server management, and promotion records."
+description: "Canvas: use when the user asks for a canvas, shared board, workspace, live planning surface, interactive dashboard, artifact workspace, or Copilot-style canvas in Codex. Use the bundled Canvas CLI for creation, listing, reading, updates, validation, export, archival, thread association and cleanup, server management, and promotion records."
 ---
 
 # Canvas
@@ -9,7 +9,7 @@ Create and maintain semi-persistent Codex work surfaces: durable enough for acti
 
 ## Contract
 
-The Canvas CLI owns storage, lifecycle, paths, validation, export sidecars, server state, archive movement, and promotion records. Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout.
+The Canvas CLI owns storage, lifecycle, paths, validation, export sidecars, server state, archive movement, thread cleanup plans, and promotion records. Do not hand-create `canvas.json`, choose storage paths, move lifecycle folders, or invent the layout.
 
 Run from the skill folder:
 
@@ -48,6 +48,8 @@ Choose the narrowest useful scope:
 Prefer `repo` or `project` when a real anchor exists. Use `user` for casual "create me a canvas for..." requests when no repo or project anchor is real. Use `thread` only when the user asks for thread-scoped work or the work is meaningless outside the conversation.
 
 Thread identifiers are associations, not anchors. Store them with `-associated-thread` during `init` or `associate-thread` afterward.
+
+For thread cleanup, get current thread evidence from Codex thread tooling, write a `threads.json` snapshot with `id`, `exists`, `status`, and `archived`, then run `clean-threads -thread-state-file <path>`. The command is dry-run by default; pass `-apply` only after reviewing the planned actions.
 
 ## Surface
 

@@ -19,6 +19,7 @@ Commands:
   server-status     Show local Canvas HTTP server status.
   server-stop       Stop the local Canvas HTTP server.
   associate-thread  Associate a Codex thread id with a canvas.
+  clean-threads     Plan or apply cleanup of stale thread associations.
   promote           Record an explicit durable promotion reference.
   archive           Move an active canvas to archived lifecycle.
 
@@ -35,6 +36,7 @@ Examples:
   canvas serve
   canvas open -id review-board
   canvas list -lifecycle active
+  canvas clean-threads -thread-state-file .\threads.json
 """;
 
     internal static async Task<int> RunAsync(string[] args)
@@ -93,6 +95,8 @@ Examples:
                     return 0;
                 case "associate-thread":
                     return await RunAssociateThreadAsync(registry, tokens);
+                case "clean-threads":
+                    return await RunCleanThreadsAsync(registry, tokens);
                 case "promote":
                     return await RunPromoteAsync(registry, tokens);
                 case "export-html":
@@ -157,6 +161,24 @@ Examples:
         }
         var result = registry.AssociateThread(id, threadId, Value(options, "lifecycle", "active"));
         CanvasServer.RefreshServerStateIfPresent(registry);
+        JsonUtil.WriteStdout(result);
+        await Task.CompletedTask;
+        return 0;
+    }
+
+    private static async Task<int> RunCleanThreadsAsync(CanvasRegistry registry, Queue<string> tokens)
+    {
+        var options = ReadOptions(tokens, flags: ["-apply", "--apply", "-remove-archived", "--remove-archived", "-archive-empty-thread-canvases", "--archive-empty-thread-canvases"]);
+        var result = registry.CleanThreads(
+            RequiredValue(options, "thread-state-file"),
+            Value(options, "lifecycle", "active"),
+            options.ContainsKey("apply"),
+            options.ContainsKey("remove-archived"),
+            options.ContainsKey("archive-empty-thread-canvases"));
+        if (options.ContainsKey("apply"))
+        {
+            CanvasServer.RefreshServerStateIfPresent(registry);
+        }
         JsonUtil.WriteStdout(result);
         await Task.CompletedTask;
         return 0;
@@ -401,6 +423,7 @@ Examples:
         return command switch
         {
             "init" => "usage: canvas init [-h] [-?] [-root ROOT] [-id ID] -scope {repo,project,thread,user} [-anchor ANCHOR] [-title TITLE] [-purpose PURPOSE] [-human-action HUMAN_ACTIONS] [-agent-action AGENT_ACTIONS] [-promotion-target PROMOTION_TARGETS] [-associated-thread ASSOCIATED_THREADS]\n\noptions:\n  -id, --id ID\n  -scope, --scope {repo,project,thread,user}\n",
+            "clean-threads" => "usage: canvas clean-threads [-h] [-?] -thread-state-file PATH [-lifecycle active|archived|all] [-apply] [-remove-archived] [-archive-empty-thread-canvases]\n\nDry-run is the default. threads.json must contain a threads array with id plus exists/status/archived fields.\n",
             _ => HelpText
         };
     }

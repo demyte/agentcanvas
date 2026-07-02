@@ -94,6 +94,7 @@ Canvas bundles a .NET file-based CLI with command verbs:
 | `validate` | Validate a canvas folder and metadata. |
 | `archive` | Move an active canvas to archived lifecycle. |
 | `associate-thread` | Attach another Codex thread id to a canvas. |
+| `clean-threads` | Plan or apply cleanup of stale thread associations from a supplied thread-state snapshot. |
 | `promote` | Record that canvas output was explicitly promoted somewhere durable. |
 | `export-html` | Export a static `canvas.html` browser surface. |
 | `serve` | Start the local Canvas HTTP server. |
@@ -102,6 +103,27 @@ Canvas bundles a .NET file-based CLI with command verbs:
 | `server-stop` | Stop the local Canvas HTTP server. |
 
 Thread-aware canvases use `associatedThreads` in `canvas.json`. You can create a thread-scoped canvas with known thread ids, associate more threads later, and filter with `list -thread-id <thread-id>`.
+
+Thread cleanup is deterministic and snapshot-driven. Build a `threads.json` file from Codex thread tooling, then dry-run cleanup before applying:
+
+```json
+{
+  "generated_at": "2026-07-02T04:10:00Z",
+  "threads": [
+    {
+      "id": "019eecad-8e7f-7df0-85ef-385e2b0d8ace",
+      "exists": false,
+      "status": "missing",
+      "archived": false
+    }
+  ]
+}
+```
+
+```powershell
+skills\canvas\scripts\canvas.exe clean-threads -thread-state-file .\threads.json
+skills\canvas\scripts\canvas.exe clean-threads -thread-state-file .\threads.json -apply
+```
 
 Run operations through:
 

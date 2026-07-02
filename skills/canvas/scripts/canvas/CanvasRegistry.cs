@@ -24,6 +24,8 @@ internal sealed class CanvasRegistry
     internal string Active { get; }
     internal string Archived { get; }
 
+    private sealed record ThreadState(string Id, bool? Exists, string Status, bool Archived);
+
     internal void EnsureRoot()
     {
         Directory.CreateDirectory(Active);
@@ -247,6 +249,160 @@ internal sealed class CanvasRegistry
         metadata["updated_at"] = UtcNow();
         JsonUtil.WriteObject(metadataFile, metadata);
         return metadata;
+    }
+
+    internal JsonObject CleanThreads(
+        string threadStateFile,
+        string? lifecycle = "active",
+        bool apply = false,
+        bool removeArchived = false,
+        bool archiveEmptyThreadCanvases = false)
+    {
+        EnsureRoot();
+        var expandedStateFile = PathUtil.ExpandPath(threadStateFile);
+        if (!File.Exists(expandedStateFile))
+        {
+            throw new CanvasValidationError($"Thread state file not found: {expandedStateFile}");
+        }
+
+        var threadState = LoadThreadState(expandedStateFile);
+        var canvasReports = new JsonArray();
+        var lifecycles = CleanThreadLifecycles(lifecycle);
+        var summary = new Dictionary<string, int>
+        {
+            ["canvases_scanned"] = 0,
+            ["canvases_with_associations"] = 0,
+            ["associations_scanned"] = 0,
+            ["keep_association"] = 0,
+            ["remove_association"] = 0,
+            ["inactive_association"] = 0,
+            ["unknown_association"] = 0,
+            ["archive_canvas"] = 0,
+            ["metadata_updated"] = 0,
+            ["canvases_archived"] = 0
+        };
+
+        foreach (var itemLifecycle in lifecycles)
+        {
+            foreach (var dir in Directory.GetDirectories(LifecycleDir(itemLifecycle)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                var metadataFile = Path.Combine(dir, "canvas.json");
+                if (!File.Exists(metadataFile))
+                {
+                    continue;
+                }
+
+                var metadata = JsonUtil.ReadObject(metadataFile);
+                var canvasId = metadata.StringValue("id") ?? Path.GetFileName(dir);
+                var scope = metadata.StringValue("scope") ?? "";
+                var associated = JsonUtil.StringList(metadata["associatedThreads"]);
+                var remaining = new List<string>();
+                var actions = new JsonArray();
+                var shouldArchive = false;
+                var metadataChanged = false;
+
+                summary["canvases_scanned"]++;
+                if (associated.Count > 0)
+                {
+                    summary["canvases_with_associations"]++;
+                }
+
+                foreach (var threadId in associated)
+                {
+                    summary["associations_scanned"]++;
+                    if (!threadState.TryGetValue(threadId, out var state))
+                    {
+                        remaining.Add(threadId);
+                        actions.Add(ThreadAction("unknown_association", threadId, "thread id was not present in thread-state file", null, apply: false));
+                        summary["unknown_association"]++;
+                        continue;
+                    }
+
+                    if (IsMissingThread(state))
+                    {
+                        actions.Add(ThreadAction("remove_association", threadId, "thread is missing or deleted", state, apply));
+                        summary["remove_association"]++;
+                        metadataChanged = true;
+                        continue;
+                    }
+
+                    if (IsInactiveThread(state))
+                    {
+                        if (removeArchived)
+                        {
+                            actions.Add(ThreadAction("remove_association", threadId, "thread is archived or inactive", state, apply));
+                            summary["remove_association"]++;
+                            metadataChanged = true;
+                            continue;
+                        }
+
+                        remaining.Add(threadId);
+                        actions.Add(ThreadAction("inactive_association", threadId, "thread is archived or inactive; pass -remove-archived to remove it", state, apply: false));
+                        summary["inactive_association"]++;
+                        continue;
+                    }
+
+                    remaining.Add(threadId);
+                    actions.Add(ThreadAction("keep_association", threadId, "thread is active", state, apply: false));
+                    summary["keep_association"]++;
+                }
+
+                if (archiveEmptyThreadCanvases && itemLifecycle == "active" && scope == "thread" && remaining.Count == 0)
+                {
+                    shouldArchive = true;
+                    actions.Add(new JsonObject
+                    {
+                        ["action"] = "archive_canvas",
+                        ["reason"] = "thread-scoped canvas has no remaining active associations",
+                        ["apply"] = apply
+                    });
+                    summary["archive_canvas"]++;
+                }
+
+                if (apply && metadataChanged)
+                {
+                    metadata["associatedThreads"] = JsonUtil.StringArray(remaining);
+                    metadata["updated_at"] = UtcNow();
+                    JsonUtil.WriteObject(metadataFile, metadata);
+                    summary["metadata_updated"]++;
+                }
+
+                if (apply && shouldArchive)
+                {
+                    ArchiveCanvas(canvasId);
+                    summary["canvases_archived"]++;
+                }
+
+                if (actions.Count > 0 || shouldArchive)
+                {
+                    canvasReports.Add(new JsonObject
+                    {
+                        ["id"] = canvasId,
+                        ["lifecycle"] = itemLifecycle,
+                        ["scope"] = scope,
+                        ["storage_path"] = dir,
+                        ["associatedThreads"] = JsonUtil.StringArray(associated),
+                        ["resultingAssociatedThreads"] = JsonUtil.StringArray(remaining),
+                        ["actions"] = actions
+                    });
+                }
+            }
+        }
+
+        return new JsonObject
+        {
+            ["dry_run"] = !apply,
+            ["applied"] = apply,
+            ["thread_state_file"] = Path.GetFullPath(expandedStateFile),
+            ["policy"] = new JsonObject
+            {
+                ["remove_missing"] = true,
+                ["remove_archived"] = removeArchived,
+                ["archive_empty_thread_canvases"] = archiveEmptyThreadCanvases
+            },
+            ["summary"] = new JsonObject(summary.Select(kv => new KeyValuePair<string, JsonNode?>(kv.Key, kv.Value))),
+            ["canvases"] = canvasReports
+        };
     }
 
     internal JsonObject PromoteCanvas(string canvasId, string target, string reference, string note = "")
@@ -511,6 +667,110 @@ internal sealed class CanvasRegistry
             }
         }
         return clean;
+    }
+
+    private static Dictionary<string, ThreadState> LoadThreadState(string path)
+    {
+        var root = JsonUtil.ReadObject(path);
+        if (root["threads"] is not JsonArray threads)
+        {
+            throw new CanvasValidationError("Thread state file must contain a 'threads' array.");
+        }
+
+        var result = new Dictionary<string, ThreadState>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in threads)
+        {
+            if (node is not JsonObject item)
+            {
+                throw new CanvasValidationError("Each thread state entry must be an object.");
+            }
+
+            var id = item.StringValue("id");
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                throw new CanvasValidationError("Each thread state entry must include a non-empty id.");
+            }
+
+            result[id] = new ThreadState(
+                id,
+                OptionalBool(item, "exists"),
+                (item.StringValue("status") ?? "").Trim().ToLowerInvariant(),
+                OptionalBool(item, "archived") ?? false);
+        }
+        return result;
+    }
+
+    private static bool? OptionalBool(JsonObject obj, string key)
+    {
+        if (!obj.TryGetPropertyValue(key, out var value) || value is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return value.GetValue<bool>();
+        }
+        catch
+        {
+            var text = value.GetValue<string>();
+            if (bool.TryParse(text, out var parsed))
+            {
+                return parsed;
+            }
+            throw new CanvasValidationError($"{key} must be a boolean.");
+        }
+    }
+
+    private static List<string> CleanThreadLifecycles(string? lifecycle)
+    {
+        if (string.IsNullOrWhiteSpace(lifecycle) || lifecycle == "active")
+        {
+            return ["active"];
+        }
+        if (lifecycle == "all")
+        {
+            return ["active", "archived"];
+        }
+        if (Lifecycles.Contains(lifecycle))
+        {
+            return [lifecycle];
+        }
+        throw new CanvasValidationError("Lifecycle must be one of ['active', 'archived', 'all'].");
+    }
+
+    private static bool IsMissingThread(ThreadState state)
+    {
+        if (state.Exists == false)
+        {
+            return true;
+        }
+
+        return state.Status is "missing" or "deleted" or "not_found" or "not-found";
+    }
+
+    private static bool IsInactiveThread(ThreadState state)
+    {
+        if (state.Archived)
+        {
+            return true;
+        }
+
+        return state.Status is "archived" or "inactive" or "closed" or "complete" or "completed";
+    }
+
+    private static JsonObject ThreadAction(string action, string threadId, string reason, ThreadState? state, bool apply)
+    {
+        return new JsonObject
+        {
+            ["action"] = action,
+            ["threadId"] = threadId,
+            ["reason"] = reason,
+            ["exists"] = state?.Exists,
+            ["status"] = state?.Status,
+            ["archived"] = state?.Archived,
+            ["apply"] = apply
+        };
     }
 
     private static string AnchorFingerprint(string anchor)
