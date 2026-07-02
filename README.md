@@ -104,3 +104,9 @@ The server index is:
 ```text
 http://127.0.0.1:12345/
 ```
+
+## Local Web Server
+
+Canvas uses a small local web server because the Codex in-app Browser works more reliably with normal `http://` pages than with `file://` URLs. Serving canvases over HTTP lets the agent inspect and interact with canvas pages as web pages.
+
+The server binds only to `127.0.0.1`. It is local to the machine running Codex and is not exposed to other machines on the network.
