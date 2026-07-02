@@ -32,7 +32,7 @@ Treat returned `storage_path`, `html_path`, `data_path`, and HTTP URLs as author
 1. Classify the canvas: purpose, scope, anchor, surface, expected actions, and promotion target. Completion: the choices are specific enough to create or update without guessing.
 2. Create or read it through the CLI. For new work, run `init`; for existing work, use `list`, `list -thread-id <thread-id>`, or `get`. Pass `-human-action`, `-agent-action`, `-promotion-target`, and `-associated-thread` when they shape the workflow. Completion: the CLI has returned the metadata and paths you will use.
 3. Update only canvas-owned artifacts. Use `update-state` for structured state. Edit returned files directly only for notes, README files, or a custom `canvas.html`; preserve user edits. Completion: the intended state, notes, and surface changes are present in the canvas folder, including a usable HTML surface when the request implies a visual workspace.
-4. Validate and inspect. Run `validate` after material changes. Use `open -id <canvas-id>` for Browser inspection because it serves `http://127.0.0.1` URLs and starts the server if needed. Completion: validation passes, or any remaining issue is reported explicitly.
+4. Validate and inspect. Run `validate` after material changes. Use `open -id <canvas-id>` for Browser inspection because it serves `http://127.0.0.1` URLs and starts the server if needed. Completion: validation passes, or any remaining issue is reported explicitly, and you have the current HTTP canvas URL for the response.
 5. Promote only on request. Use `promote` to record explicit durable promotion references; it records the promotion and does not write arbitrary destination files. Completion: the user can tell what stayed canvas work and what became durable state.
 
 ## Scope
@@ -89,4 +89,4 @@ Use the local server for Browser work:
 
 ## Response
 
-When presenting a canvas, include: canvas id, scope and anchor, storage path, files created or updated, promotion status, and how to continue. Be explicit when something is only a working artifact.
+When presenting a canvas after any create, update, refresh, validation, inspection, or other canvas work, include the current `http://127.0.0.1` canvas URL. Also include: canvas id, scope and anchor, storage path, files created or updated, promotion status, and how to continue. Be explicit when something is only a working artifact.
