@@ -1,6 +1,6 @@
 {
   "name": "canvas",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Semi-persistent canvas workspaces for Codex.",
   "author": {
     "name": "James Summerton"
