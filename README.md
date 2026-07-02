@@ -2,47 +2,20 @@
 
 Canvas is a local Codex plugin that gives agents a semi-persistent workspace for active work.
 
-It is for work that should survive beyond a scratch file, but is not yet durable project truth. A canvas can hold notes, structured state, browser-facing HTML, thread associations, and promotion records without writing those working artifacts into the repository you are operating on.
+Use it when a task needs a shared working surface that should survive beyond scratch notes, but should not yet be written into the repo or promoted into durable project memory.
 
-## What It Does
-
-Canvas lets an agent:
-
-- create named workspaces under the user profile
-- keep structured state in `state.json`
-- keep readable notes in `notes.md`
-- track metadata, lifecycle, scope, thread associations, and promotions in `canvas.json`
-- serve canvases over `http://127.0.0.1:12345/` for Codex Browser inspection
-- create interactive static HTML surfaces when the task calls for a board, planner, dashboard, tracker, map, or review surface
-- archive canvases when the active work is finished
-- dry-run cleanup of stale thread associations from a supplied `threads.json`
-
-Default storage:
-
-```text
-~/.agents/canvas
-```
-
-On Windows this is normally:
-
-```text
-C:\Users\<you>\.agents\canvas
-```
-
-Canvas stores work outside the repo by default. Nothing becomes durable project documentation, project memory, issue content, or source code unless the user explicitly asks for promotion.
+Canvas is useful for reviews, investigations, planning boards, trackers, dashboards, research notes, browser-inspectable artifacts, and small interactive workspaces.
 
 ## Prerequisites
 
 - Codex with local plugin support.
 - `codex` CLI available on the path.
-- .NET SDK on the path as `dotnet`.
-- PowerShell for the bundled wrapper examples.
-
-The CLI is a .NET file-based app. If `skills/canvas/scripts/canvas.exe` is missing or stale, the wrapper publishes it from `skills/canvas/scripts/canvas.cs`.
+- .NET SDK available as `dotnet`.
+- PowerShell.
 
 ## Install
 
-Clone the repository, then install it from the repo root:
+Clone the repo and install the plugin from the repo root:
 
 ```powershell
 git clone https://github.com/demyte/agentcanvas.git
@@ -56,139 +29,78 @@ Confirm it is installed:
 codex plugin list --json
 ```
 
-The plugin installs the `canvas` skill and bundles the Canvas CLI.
+`codex plugin add` installs from a configured marketplace selector such as `canvas@personal`. It does not currently install directly from a raw GitHub repo URL, so clone the repo first.
 
 ## Use It From An Agent
 
-After installation, ask Codex naturally:
+After installation, ask Codex naturally. You can refer to it as Canvas, `/canvas`, `$canvas`, or `@Canvas`.
+
+Create a new canvas:
 
 ```text
-Create a canvas for this review.
-```
-
-```text
-List my active canvases.
-```
-
-```text
-Open the canvas for this investigation.
+@Canvas create a canvas for this review.
 ```
 
 ```text
 Create a meal planner canvas named meals01.
 ```
 
-The skill tells the agent to start the Canvas server if needed, use the bundled CLI for storage and lifecycle operations, and return the HTTP URL for the canvas.
+Open or inspect an existing canvas:
 
-## Use The CLI Directly
-
-From the repo root:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File skills\canvas\scripts\canvas.ps1 --help
+```text
+@Canvas open the canvas for this investigation.
 ```
 
-After the executable exists:
-
-```powershell
-skills\canvas\scripts\canvas.exe --help
+```text
+Show me the HTTP link for the xpna-prod-exception-loop canvas.
 ```
 
-Common commands:
+List canvases:
 
-| Command | Purpose |
-| --- | --- |
-| `init` | Create a canvas. |
-| `list` | List canvases. |
-| `get` | Read canvas metadata. |
-| `update-state` | Merge values into `state.json`. |
-| `validate` | Validate canvas metadata and files. |
-| `serve` | Start the local HTTP server. |
-| `open` | Return the HTTP URL for one canvas. |
-| `archive` | Move an active canvas to archived lifecycle. |
-| `associate-thread` | Add a Codex thread id to `associatedThreads`. |
-| `clean-threads` | Dry-run or apply cleanup from a supplied `threads.json`. |
-| `promote` | Record an explicit promotion reference. |
-| `export-html` | Regenerate the starter HTML shell and data sidecar. |
-
-Create a repo-scoped canvas:
-
-```powershell
-skills\canvas\scripts\canvas.exe init `
-  -id review-board `
-  -scope repo `
-  -anchor D:\Projects\repo `
-  -purpose "Track review work"
+```text
+@Canvas list my active canvases.
 ```
 
-Start the server and open a canvas:
+Update canvas state or notes:
 
-```powershell
-skills\canvas\scripts\canvas.exe serve
-skills\canvas\scripts\canvas.exe open -id review-board
+```text
+Add the current decisions and open questions to this canvas.
 ```
 
-The default server URL is:
+```text
+Refresh the review canvas and validate it.
+```
+
+Create a visual surface:
+
+```text
+Create a project dashboard canvas for this work.
+```
+
+```text
+Turn this plan into an interactive tracker canvas.
+```
+
+Clean up thread associations:
+
+```text
+@Canvas dry-run cleanup for stale thread associations.
+```
+
+Archive completed work:
+
+```text
+Archive the canvas for this finished review.
+```
+
+Canvas starts its local server when needed and returns HTTP links like:
+
+```text
+http://127.0.0.1:12345/canvas/<canvas-id>/
+```
+
+The server index is:
 
 ```text
 http://127.0.0.1:12345/
 ```
-
-## Thread Cleanup
-
-Thread-aware canvases store associations in `canvas.json`:
-
-```json
-{
-  "associatedThreads": [
-    "019eecad-8e7f-7df0-85ef-385e2b0d8ace"
-  ]
-}
-```
-
-The CLI does not discover Codex thread status by itself. The agent should build a `threads.json` snapshot from Codex thread tooling, then pass it to the CLI.
-
-Example `threads.json`:
-
-```json
-{
-  "generated_at": "2026-07-02T04:10:00Z",
-  "threads": [
-    {
-      "id": "019eecad-8e7f-7df0-85ef-385e2b0d8ace",
-      "exists": false,
-      "status": "missing",
-      "archived": false
-    }
-  ]
-}
-```
-
-Dry-run cleanup:
-
-```powershell
-skills\canvas\scripts\canvas.exe clean-threads -thread-state-file .\threads.json
-```
-
-Apply after review:
-
-```powershell
-skills\canvas\scripts\canvas.exe clean-threads -thread-state-file .\threads.json -apply
-```
-
-## Browser Surfaces
-
-Canvas serves canvases through the local server so Codex Browser can inspect them as normal web pages.
-
-Static canvas pages can use JavaScript and CDN libraries. The shared template at `skills/canvas/templates/canvas-viewer.html` is only a blank creation stub. Existing custom `canvas.html` files should be edited directly and validated; do not run `export-html` as a routine refresh because it can overwrite a custom page with the starter shell.
-
-## Repository Layout
-
-```text
-.codex-plugin/plugin.json       Codex plugin manifest
-skills/canvas/SKILL.md          Agent instructions
-skills/canvas/scripts/          CLI source, wrapper, and generated exe
-skills/canvas/templates/        HTML and server templates
-```
-
-Generated executables and test output are ignored by git.
